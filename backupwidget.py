@@ -123,4 +123,71 @@ w, h = default.size[0]//4, default.size[1]//4
 default = default.resize((w,h))
 defaultClip = Clip(default,0,0,w,h,name="cabbage")
             
-        
+
+            '''
+        tempClip = self.drawables[0].copy()
+        tempImg = pilToCV(tempClip.origImg)
+        for graphic in self.drawables[1:]:
+            mask = pilToCV(graphic.img)
+            tempImg = overlayMask(tempImg,mask,int((graphic.x-self.x0)/(self.scale*1))-self.oMarg,int((graphic.y-self.y0)/(self.scale*1))-self.oMarg)
+        tempImg = cvToPIL(tempImg)
+        tempClip.origImg = tempImg.copy()
+        tempClip.scaleImg(self.scale)
+        tempClip.draw(canvas)
+        '''
+        '''
+        tempImg = self.origImg.copy()
+        tempImg = pilToCV(tempImg)
+        for graphic in self.editor.drawables[1:]:
+            mask = pilToCV(graphic.img)
+            tempImg = overlayMask(tempImg,mask,int((graphic.x-self.editor.x0)/(self.editor.scale*1))-self.editor.oMarg,int((graphic.y-self.editor.y0)/(self.editor.scale*1))-self.editor.oMarg)
+            print("packing drawable at",graphic.name)
+        tempImg = cvToPIL(tempImg)
+        self.origImg = tempImg
+        '''
+
+
+tempClip = self.drawables[0].copy()
+        tempImg = pilToCV(tempClip.origImg)
+        for graphic in self.drawables[1:]:
+            ratio = 1
+            if(graphic.typ == 'bubble'):
+                ratio = 5
+            elif(graphic.typ == 'graphic'):
+                ratio = 1.5
+            scaledGraphic = graphic.img.resize((int(graphic.img.size[0]*ratio),int(graphic.img.size[1]*ratio)))
+            mask = pilToCV(scaledGraphic)
+            tempImg = overlayMask(tempImg,mask,int((graphic.x-self.x0)/(self.scale*1))-self.oMarg,int((graphic.y-self.y0)/(self.scale*1))-self.oMarg)
+        tempImg = cvToPIL(tempImg)
+        tempClip.origImg = tempImg.copy()
+        tempClip.scaleImg(self.scale)
+        tempClip.draw(canvas)
+        for message in self.bubbleTexts:
+            canvas.create_text(message[1],message[2]-30,fill='blue',text=message[0],font='helvetica 20 bold')
+
+
+
+'''
+    def package(self):
+        tempImg = self.origImg.copy()
+        tempImg = pilToCV(tempImg)
+        for graphic in self.editor.drawables[1:]:
+            ratio = 1
+            if(graphic.typ == 'bubble'):
+                ratio = bubbleRatio
+            elif(graphic.typ == 'graphic'):
+                ratio = 2
+            scaledGraphic = graphic.img.resize((int(graphic.img.size[0]*ratio*self.editor.scale),int(graphic.img.size[1]*ratio*self.editor.scale)))
+            mask = pilToCV(scaledGraphic)
+            tempImg = overlayMask(tempImg,mask,int((graphic.x-self.editor.x0)/(self.editor.scale*1))-self.editor.oMarg,int((graphic.y-self.editor.y0)/(self.editor.scale*1))-self.editor.oMarg)
+        for message in self.editor.bubbleTexts:
+            x,y = int(message[1]/self.editor.scale)-200, int((message[2]-80)/self.editor.scale)
+            i = 0
+            for line in message[0].split('\n'):
+                cv2.putText(tempImg, line, (x, y ), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0),thickness=3)
+                y += 30
+                i+=1
+        tempImg = cvToPIL(tempImg)
+        #self.origImg = tempImg
+        self.origImg = tempImg.copy()
+        '''

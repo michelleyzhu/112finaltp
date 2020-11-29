@@ -131,10 +131,6 @@ def exp1():
 
         if(cv2.waitKey(1) and 0xFF == ord('q')):
             break
-
-
-
-
 def cartoon():
     vid = cv2.VideoCapture(0)
     
@@ -164,8 +160,21 @@ def cartoon():
         
         cv2.imshow("multiple passes",imgCartoon1)
 
-
         if(cv2.waitKey(1) and 0xFF == ord('q')):
             break
 
-cartoon()
+def wtf():
+    img = cv2.imread("graphics/im1.0.jpg")
+    hsv = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
+    gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+    for row in hsv:
+        h = max([row[i][0] for i in range(len(row[0]))])
+        s = max([row[i][1] for i in range(len(row[0]))])
+        v = max([row[i][2] for i in range(len(row[0]))])
+        print(f"h:{h}, s:{s}, v:{v}")
+    print(hsv)
+
+def check():
+    img = cv2.imread("graphics/im1.0.jpg")
+    print(len(img),len(img[0]),len(img[0][0]))
+check()

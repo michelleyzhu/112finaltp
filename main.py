@@ -1,9 +1,10 @@
 import math, copy, random, time, string, os
 import cv2 as cv2
 import numpy as np
-from tkinter import *
+#from tkinter import *
 from cmu_112_graphics import *
 from widgets import *
+#from fakecv import *
 
 # #fe4a49 • #2ab7ca • #fed766 • #e6e6ea • #f4f4f8
 def make2dList(rows, cols):
@@ -17,6 +18,8 @@ class Studio(App):
         self.currIm = None
         self.timerDelay = 20
         self.commandHeld = False
+        self.enterText = False
+        self.currBubble = ["",0,0,None] # message, x, y
 
         self.doubleClickStarted,self.timeAt = False,time.time()
 
@@ -42,7 +45,6 @@ class Studio(App):
         
 
     def initializeStudio(self):
-        #self.cartoonGrid = [[None,None],[None,None]]
         l = self.pBarLeft + self.oMarg
         self.buttons = []
         self.recordButt = Button("click to start recording",l,self.oMarg,200,50)
@@ -60,11 +62,23 @@ class Studio(App):
 
     def importGraphics(self):
         self.graphics = []
-        #self.removeTempFiles('graphics')
+        self.removeTempFiles('graphics')
         for f in os.listdir('graphics'):
-            img = self.loadImage(f"graphics/{f}")
-            graphicAsClip = Clip(img,0,0,img.size[0],img.size[1],outline=False)
-            self.graphics.append(graphicAsClip)
+            if(f[0:2] == 'sp'):
+                img = self.loadImage(f"graphics/{f}")
+                graphicAsClip = Clip(img,0,0,img.size[0],img.size[1],typ='bubble')
+                self.graphics.append(graphicAsClip)
+        for f in os.listdir('graphics'):
+            if(f[0:2] == 'bw'):
+                img = self.loadImage(f"graphics/{f}")
+                graphicAsClip = Clip(img,0,0,img.size[0],img.size[1],typ='graphic')
+                self.graphics.append(graphicAsClip)
+        for f in os.listdir('graphics'):
+            if(f[0:2] == 'ex'):
+                img = self.loadImage(f"graphics/{f}")
+                graphicAsClip = Clip(img,0,0,img.size[0],img.size[1],typ='graphic')
+                self.graphics.append(graphicAsClip)
+        
 
     def toggleRecordButton(self):
         self.recording = not self.recording
@@ -86,6 +100,17 @@ class Studio(App):
             self.vid.release()
             cv2.destroyAllWindows()
     '''
+
+    def checkBubbleClicked(self,region,event):
+        if(type(region) == EditorRegion):
+            coords = region.bubbleClicked(event.x,event.y)
+            if(coords != None):
+                self.enterText = True
+                self.currBubble = ['',coords[0],coords[1],coords[2]]
+                return True
+        return False
+
+
     def mousePressed(self,event):
         if(self.recordButt.isClicked(event.x,event.y)):
             self.toggleRecordButton()
@@ -98,6 +123,8 @@ class Studio(App):
         for region in self.regions:
             if(not region.active): continue # if inactive, don't respond to dragging
             for i in range(len(region.drawables)):
+                if self.checkBubbleClicked(region,event): return # CHECKS BUBBLE CLICKS
+
                 drawable = region.drawables[i]
                 if(region.canMove(i) and drawable.isClicked(event.x,event.y)):
                     self.dragX,self.dragY,self.draggedClip = event.x,event.y,drawable
@@ -118,25 +145,49 @@ class Studio(App):
         for region in self.regions:
             if(region.name != 'graphics'):
                 region.active = False
-        self.currEditorRegion.active = True
+        drawable.editor.active = True
         
     def keyPressed(self,event):
-        # end editing mode
-        if(self.editing and event.key == "Escape"):
-            # Todo: package editorregion into image, insert back in previous location
+        # can't escape when entering text
+        if(self.editing and not self.enterText and event.key == "Escape"):
+            print("trying to escape")
             self.editing = False
             for region in self.regions:
-                region.active = True
-            self.regions.remove(self.currEditorRegion)
+                i = 0
+                for drawable in region.drawables:
+                    if(type(region) != EditorRegion and drawable.editor == self.currEditorRegion and (type(region) == StudioRegion and region.shownDrawables[i])):
+                        drawable.package(drawable)
+                    i+=1
+                if(type(region) != EditorRegion):
+                    region.active = True
+            self.currEditorRegion.active = False
+        if(self.enterText):
+            if(event.key == 'Enter'):
+                mess, x, y,graphic = tuple(self.currBubble)
+                self.currEditorRegion.insertBubbleText(mess,x,y,graphic)
+                self.enterText = False
+            else:
+                newChar = event.key
+                if(newChar == 'Space'): newChar = ' '
+                mess, x, y,graphic = tuple(self.currBubble)
+                if(len(mess)%12 == 0):
+                    if(newChar != 'Space' and len(mess) != 0):
+                        mess += '-\n'
+                    else:
+                        mess += '\n'
+                self.currBubble = mess + newChar, x,y,graphic
                 
     def mouseReleased(self,event):
-        if(self.draggedClip != None):
+        if(self.draggedClip != None and not self.enterText):
             clip2Add = self.draggedClip.copy()
             if(self.prevRegion.active):
                 self.prevRegion.removeDrawable(self.draggedClip)
+            else:
+                self.prevRegion.removeDrawableWithoutHiding(self.draggedClip)
             for region in self.regions:
                 if(region.active and region.shouldAccept(clip2Add)):
-                    region.insertDrawable(clip2Add,self.savedRegion)
+                    if(not (type(region) == EditorRegion and clip2Add.typ == 'img')): # if adding own image to editor, reject!
+                        region.insertDrawable(clip2Add,self.savedRegion)
             self.draggedClip = None
 
     def mouseDragged(self,event):
@@ -164,7 +215,7 @@ class Studio(App):
 
         self.currIm = self.loadImage("savedIm.jpg")
         w, h = self.currIm.size[0], self.currIm.size[1]
-        newClip = Clip(self.currIm,0,0,w,h)
+        newClip = Clip(self.currIm,0,0,w,h,editor=[])
         self.studioRegion.addDrawable(newClip,self.savedRegion)
         self.regions.append(newClip.editor)
         
@@ -264,6 +315,7 @@ class Studio(App):
         for region in self.regions:
             if(region.active):
                 region.draw(canvas)
+        self.graphicsRegion.draw(canvas)
     
     def drawControlPanel(self,canvas):
         canvas.create_line(self.pBarLeft,0,self.pBarLeft,self.gBarTop,fill='black',width=10)
@@ -281,7 +333,7 @@ class Studio(App):
         
         
 def playGame():
-    Studio(width = 1200, height = 750)
+    Studio(width = 1200, height = 800)
 
 def main():
     playGame()
