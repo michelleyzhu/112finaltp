@@ -3,54 +3,49 @@ import cv2 as cv2
 import numpy as np
 #from tkinter import *
 from cmu_112_graphics import *
+from fakecv import *
 from widgets import *
-#from fakecv import *
 
 # #fe4a49 • #2ab7ca • #fed766 • #e6e6ea • #f4f4f8
-def make2dList(rows, cols):
-    return [ ([0] * cols) for row in range(rows) ]
-
 class Studio(App):
     def appStarted(self):
+        # cv things
         self.recording = False
         self.vid = None
         self.frame = None
-        self.currIm = None
+        self.vidOut = None
+        
+        # graphics things
         self.timerDelay = 20
-        self.commandHeld = False
         self.enterText = False
         self.currBubble = ["",0,0,None] # message, x, y
-
-        self.doubleClickStarted,self.timeAt = False,time.time()
-
+        self.doubleClickStarted, self.timeAt = False,time.time()
+        self.draggedClip = None
+        self.editing = False
         self.maxClips = 4
         self.prevRegion = None
 
-        self.pBarLeft = 800
-        self.gBarTop = 450
-
         # margins
-        self.oMarg = 30
-        self.iMarg = 10
-        self.initializeStudio()
+        self.pBarLeft, self.gBarTop = 800, 450
+        self.oMarg, self.iMarg = 30, 10
+        
         self.importGraphics()
-        self.draggedClip = None
-        self.vidOut = None
-        self.editing = False
-
+        self.initializeStudio()
+        
+        
+    def initializeStudio(self):
+        l = self.pBarLeft + self.oMarg
+        self.recordButt = Button("click to start recording",l,  self.oMarg,200,50)
+        self.vidButt = Button("video version",l,                self.oMarg + 50,200,50)
+        self.default = Button("default cartoon",l,              self.oMarg + 100+self.iMarg,200,50)
+        self.dotCartoon = Button("dotted half print filter",l,  self.oMarg + 150+self.iMarg,200,50)
+        self.pastel = Button("pastel filter",l,                 self.oMarg + 200+self.iMarg,200,50)
+        self.buttons = [self.recordButt, self.vidButt, self.dotCartoon, self.pastel, self.default]
+        
         self.studioRegion = StudioRegion("studio",0,0,self.pBarLeft, self.gBarTop,1/4,self.maxClips)
         self.savedRegion = SavedRegion("saved",self.pBarLeft,100,self.width-self.pBarLeft, self.gBarTop-100,0.1,10)
         self.graphicsRegion = GraphicsRegion('graphics',0,self.gBarTop,self.width,self.height-self.gBarTop,0.3,20,self.graphics)
         self.regions = [self.studioRegion, self.savedRegion,self.graphicsRegion]
-        
-
-    def initializeStudio(self):
-        l = self.pBarLeft + self.oMarg
-        self.buttons = []
-        self.recordButt = Button("click to start recording",l,self.oMarg,200,50)
-        self.vidButt = Button("video version",l,self.oMarg + 50+self.iMarg,200,50)
-        self.buttons.append(self.recordButt)
-        self.buttons.append(self.vidButt)
 
     def removeTempFiles(self,path, suffix='.DS_Store'):
         if path.endswith(suffix):
@@ -63,23 +58,19 @@ class Studio(App):
     def importGraphics(self):
         self.graphics = []
         self.removeTempFiles('graphics')
-        for f in os.listdir('graphics'):
-            if(f[0:2] == 'sp'):
-                img = self.loadImage(f"graphics/{f}")
-                graphicAsClip = Clip(img,0,0,img.size[0],img.size[1],typ='bubble')
-                self.graphics.append(graphicAsClip)
-        for f in os.listdir('graphics'):
-            if(f[0:2] == 'bw'):
-                img = self.loadImage(f"graphics/{f}")
-                graphicAsClip = Clip(img,0,0,img.size[0],img.size[1],typ='graphic')
-                self.graphics.append(graphicAsClip)
-        for f in os.listdir('graphics'):
-            if(f[0:2] == 'ex'):
-                img = self.loadImage(f"graphics/{f}")
-                graphicAsClip = Clip(img,0,0,img.size[0],img.size[1],typ='graphic')
-                self.graphics.append(graphicAsClip)
+        for f in os.listdir('graphics/bubbles'):
+            img = self.loadImage(f"graphics/bubbles/{f}")
+            graphicAsClip = Clip(img,img,0,0,img.size[0],img.size[1],typ='bubble')
+            self.graphics.append(graphicAsClip)
+        for f in os.listdir('graphics/colors'):
+            img = self.loadImage(f"graphics/colors/{f}")
+            graphicAsClip = Clip(img,img,0,0,img.size[0],img.size[1],typ='graphic')
+            self.graphics.append(graphicAsClip)
+        for f in os.listdir('graphics/bw'):
+            img = self.loadImage(f"graphics/bw/{f}")
+            graphicAsClip = Clip(img,img,0,0,img.size[0],img.size[1],typ='graphic')
+            self.graphics.append(graphicAsClip)
         
-
     def toggleRecordButton(self):
         self.recording = not self.recording
         if(self.recording):
@@ -110,7 +101,6 @@ class Studio(App):
                 return True
         return False
 
-
     def mousePressed(self,event):
         if(self.recordButt.isClicked(event.x,event.y)):
             self.toggleRecordButton()
@@ -120,14 +110,20 @@ class Studio(App):
             self.toggleVidButton()
             return
         '''
+        if(self.editing):
+            if(self.dotCartoon.isClicked(event.x,event.y)):
+                self.currEditorRegion.applyFilter('dot') # should directly edit the final product
+            elif(self.pastel.isClicked(event.x,event.y)):
+                self.currEditorRegion.applyFilter('pastel')
+            elif(self.default.isClicked(event.x,event.y)):
+                self.currEditorRegion.applyFilter('default')
         for region in self.regions:
             if(not region.active): continue # if inactive, don't respond to dragging
             for i in range(len(region.drawables)):
                 if self.checkBubbleClicked(region,event): return # CHECKS BUBBLE CLICKS
-
                 drawable = region.drawables[i]
                 if(region.canMove(i) and drawable.isClicked(event.x,event.y)):
-                    self.dragX,self.dragY,self.draggedClip = event.x,event.y,drawable
+                    self.dragX, self.dragY, self.draggedClip = event.x,event.y,drawable
                     self.prevRegion = region
                     if(region != self.graphicsRegion): # if graphics, double clicking shouldn't do anything
                         if(self.doubleClickStarted):
@@ -150,7 +146,6 @@ class Studio(App):
     def keyPressed(self,event):
         # can't escape when entering text
         if(self.editing and not self.enterText and event.key == "Escape"):
-            print("trying to escape")
             self.editing = False
             for region in self.regions:
                 i = 0
@@ -163,7 +158,7 @@ class Studio(App):
             self.currEditorRegion.active = False
         if(self.enterText):
             if(event.key == 'Enter'):
-                mess, x, y,graphic = tuple(self.currBubble)
+                mess, x, y, graphic = tuple(self.currBubble)
                 self.currEditorRegion.insertBubbleText(mess,x,y,graphic)
                 self.enterText = False
             else:
@@ -171,14 +166,14 @@ class Studio(App):
                 if(newChar == 'Space'): newChar = ' '
                 mess, x, y,graphic = tuple(self.currBubble)
                 if(len(mess)%12 == 0):
-                    if(newChar != 'Space' and len(mess) != 0):
+                    if(len(mess) != 0 and mess[-1] != 'Space'):
                         mess += '-\n'
                     else:
                         mess += '\n'
                 self.currBubble = mess + newChar, x,y,graphic
                 
     def mouseReleased(self,event):
-        if(self.draggedClip != None and not self.enterText):
+        if(self.draggedClip != None): #  and not self.enterText
             clip2Add = self.draggedClip.copy()
             if(self.prevRegion.active):
                 self.prevRegion.removeDrawable(self.draggedClip)
@@ -211,42 +206,23 @@ class Studio(App):
         self.filterB.draw(img)
 
     def saveSnap(self):
+        # the working/showing image is "img" and is a PIL Image object
+        # the original stored image will be used to update the image, and is a CV-compatible nparray
         cv2.imwrite("savedIm.jpg",self.imgCartoon)
-
-        self.currIm = self.loadImage("savedIm.jpg")
-        w, h = self.currIm.size[0], self.currIm.size[1]
-        newClip = Clip(self.currIm,0,0,w,h,editor=[])
+        currIm = self.loadImage("savedIm.jpg")
+        w, h = currIm.size[0], currIm.size[1]
+        newClip = Clip(currIm,self.frame,0,0,w,h,editor=[])
         self.studioRegion.addDrawable(newClip,self.savedRegion)
         self.regions.append(newClip.editor)
         
     def cvMouseActed(self,event,x,y,flag,param):
-        if(self.filterB.isClicked(x//self.windowFrac,y//self.windowFrac)):
-            self.filterB.click(self.imgCartoon)
-            self.show()
-    
-
-    # cartoonify() inspired by the tutorial
-    # https://www.askaswiss.com/2016/01/how-to-create-cartoon-effect-opencv-python.html
-    def cartoonify(self,img):
-        imgCartoon = img.copy()
-        imgColor = imgCartoon.copy()
-
-        pyrLevels = 3
-        for i in range(pyrLevels):
-            imgColor = cv2.pyrDown(imgColor)
-        imgColor = cv2.bilateralFilter(imgColor,d=13,sigmaColor=15,sigmaSpace=15)
-        for i in range(pyrLevels):
-            imgColor = cv2.pyrUp(imgColor)
-        
-        imgEdge = cv2.cvtColor(imgCartoon,cv2.COLOR_BGR2GRAY)
-        imgEdge = cv2.medianBlur(imgEdge,7)
-        imgEdge = cv2.adaptiveThreshold(imgEdge,255,cv2.ADAPTIVE_THRESH_MEAN_C,cv2.THRESH_BINARY,blockSize=9,C=2.5)
-        imgEdge = cv2.erode(imgEdge,(5,5),iterations=3)
-        imgCartoon = cv2.bitwise_and(imgColor,imgColor,mask=imgEdge)
-        return imgCartoon
+        pass
+        #if(self.filterB.isClicked(x//self.windowFrac,y//self.windowFrac)):
+        #    self.filterB.click(self.imgCartoon)
+        #    self.show()
 
     def show(self):
-        resized = cv2.resize(self.imgPanel,(self.minW,self.minH))
+        resized = cv2.resize(self.imgCartoon,(self.minW,self.minH))
         cv2.imshow("recording",resized)
 
     def writeToVid(self):
@@ -300,11 +276,12 @@ class Studio(App):
             self.processVid()
         
         ret, self.frame = self.vid.read()
-        self.imgCartoon = self.cartoonify(self.frame)
+        self.imgCartoon = cartoonify(self.frame)
         if(self.vidOut != None):
             self.writeToVid()
-        self.imgPanel = self.imgCartoon.copy()
-        self.drawPanel(self.imgPanel)
+        #self.imgPanel = self.imgCartoon.copy()
+        #self.imgPanel = self.imgCartoon
+        #self.drawPanel(self.imgPanel)
         self.show()
         
     def timerFired(self):
@@ -312,11 +289,14 @@ class Studio(App):
             self.record()
     
     def drawBoard(self,canvas):
-        for region in self.regions:
-            if(region.active):
-                region.draw(canvas)
-        self.graphicsRegion.draw(canvas)
-    
+        if(self.editing):
+            self.currEditorRegion.draw(canvas,False)
+            self.graphicsRegion.draw(canvas,False)
+        else:
+            for region in self.regions:
+                if(region.active):
+                    region.draw(canvas)
+            
     def drawControlPanel(self,canvas):
         canvas.create_line(self.pBarLeft,0,self.pBarLeft,self.gBarTop,fill='black',width=10)
         for butt in self.buttons:
