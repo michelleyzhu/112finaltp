@@ -120,8 +120,8 @@ class Studio(App):
         for region in self.regions:
             if(not region.active): continue # if inactive, don't respond to dragging
             for i in range(len(region.drawables)):
-                if self.checkBubbleClicked(region,event): return # CHECKS BUBBLE CLICKS
                 drawable = region.drawables[i]
+                if drawable.typ == 'bubble' and self.checkBubbleClicked(region,event): return # CHECKS BUBBLE CLICKS
                 if(region.canMove(i) and drawable.isClicked(event.x,event.y)):
                     self.dragX, self.dragY, self.draggedClip = event.x,event.y,drawable
                     self.prevRegion = region
@@ -134,6 +134,7 @@ class Studio(App):
                             self.doubleClickStarted = True
                             self.timeAt = time.time()
                     return
+                
     
     def openEditor(self,drawable):
         self.editing = True
@@ -158,9 +159,9 @@ class Studio(App):
             self.currEditorRegion.active = False
         if(self.enterText):
             if(event.key == 'Enter'):
+                self.enterText = False
                 mess, x, y, graphic = tuple(self.currBubble)
                 self.currEditorRegion.insertBubbleText(mess,x,y,graphic)
-                self.enterText = False
             else:
                 newChar = event.key
                 if(newChar == 'Space'): newChar = ' '

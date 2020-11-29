@@ -192,7 +192,7 @@ class EditorRegion(Region):
     
     # RETURNS NONE or the center of the bubble(hopefully)
     def bubbleClicked(self,x,y):
-        for graphic in self.drawables[1:]:
+        for graphic in self.drawables[1:][::-1]:
             if(graphic.typ != 'bubble'):
                 continue
             w,h = int(graphic.img.size[0]*bubbleRatio),int(graphic.img.size[1]*bubbleRatio)
@@ -204,13 +204,12 @@ class EditorRegion(Region):
     def insertBubbleText(self,text,x,y,graphic):
         self.bubbleTexts.append((text,x,y,graphic))
 
-    def updateGraphics(self):
+    def updateGraphics(self,filterChanged=False):
         print("udpating graphics, adding filters + objects",len(self.drawables))
         # disaster? copy
         tempClip = self.drawables[0]
-        tempImg = tempClip.origImg
-        
         # applying filter
+        tempImg = tempClip.origImg
         if(self.filter == 'dot'):
             tempImg = dotFilter(tempImg)
         elif(self.filter == 'pastel'):
@@ -228,17 +227,19 @@ class EditorRegion(Region):
             mask = pilToCV(scaledGraphic)
             tempImg = overlayMask(tempImg,mask,int((graphic.x-self.x0)/self.scale*1 - self.oMarg),int((graphic.y-self.y0)/self.scale - self.oMarg))
         tempImg = cvToPIL(tempImg)
+
         tempClip.img = tempImg # removed copy, disaster?
         tempClip.scaleImg(self.scale)
         self.finalProduct = tempClip.copy() # removed copy, disaster?
 
     def applyFilter(self,filt):
         self.filter = filt
-        self.updateGraphics()
+        self.updateGraphics(True)
         
     def draw(self,canvas,littleText=False):
         if(self.prevNumGraphics != len(self.drawables)):
-            self.updateGraphics()
+            print("attempting to update at least")
+            self.updateGraphics(False)
             self.prevNumGraphics = len(self.drawables)
         self.finalProduct.draw(canvas,False) # false b/c not drawing little text
         for message in self.bubbleTexts:
