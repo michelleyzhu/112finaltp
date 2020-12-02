@@ -6,6 +6,9 @@ from cmu_112_graphics import *
 from fakecv import *
 from widgets import *
 
+##### CITATION: see importGraphics() for citation of images #####
+
+
 # #fe4a49 • #2ab7ca • #fed766 • #e6e6ea • #f4f4f8
 class Studio(App):
     def appStarted(self):
@@ -47,6 +50,8 @@ class Studio(App):
         self.graphicsRegion = GraphicsRegion('graphics',0,self.gBarTop,self.width,self.height-self.gBarTop,0.3,20,self.graphics)
         self.regions = [self.studioRegion, self.savedRegion,self.graphicsRegion]
 
+
+    # Directly copied from https://www.cs.cmu.edu/~112/notes/notes-recursion-part2.html#removeTempFiles
     def removeTempFiles(self,path, suffix='.DS_Store'):
         if path.endswith(suffix):
             print(f'Removing file: {path}')
@@ -55,6 +60,10 @@ class Studio(App):
             for filename in os.listdir(path):
                 self.removeTempFiles(path + '/' + filename, suffix)
 
+
+    # bubbles: 211558518, https://depositphotos.com/211558518/stock-illustration-big-set-empty-speech-bubble.html
+    # black/white(graphics/bw): Max Luczynski, https://www.behance.net/gallery/47977047/One-Hundred-hand-drawn-cartoon-and-comic-symbols
+    # explosions(graphics/colors): Tartila 20799751, https://www.vectorstock.com/royalty-free-vector/exclamation-texting-comic-signs-on-speech-bubbles-vector-20799751
     def importGraphics(self):
         self.graphics = []
         self.removeTempFiles('graphics')
@@ -135,7 +144,6 @@ class Studio(App):
                             self.timeAt = time.time()
                     return
                 
-    
     def openEditor(self,drawable):
         self.editing = True
         self.currEditorRegion = drawable.editor

@@ -205,7 +205,6 @@ class EditorRegion(Region):
         self.bubbleTexts.append((text,x,y,graphic))
 
     def updateGraphics(self,filterChanged=False):
-        print("udpating graphics, adding filters + objects",len(self.drawables))
         # disaster? copy
         tempClip = self.drawables[0]
         # applying filter
@@ -238,7 +237,6 @@ class EditorRegion(Region):
         
     def draw(self,canvas,littleText=False):
         if(self.prevNumGraphics != len(self.drawables)):
-            print("attempting to update at least")
             self.updateGraphics(False)
             self.prevNumGraphics = len(self.drawables)
         self.finalProduct.draw(canvas,False) # false b/c not drawing little text
