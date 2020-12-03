@@ -21,9 +21,9 @@ def cvtHSV(bgr):
     gMask = 1 - np.sign(cmax-smallG)
     rMask = 1 - np.sign(cmax-smallR)
 
-    cv2.imwrite('bMask.jpg',bMask*255)
-    cv2.imwrite('gMask.jpg',gMask*255)
-    cv2.imwrite('rMask.jpg',rMask*255)
+    #cv2.imwrite('bMask.jpg',bMask*255)
+    #cv2.imwrite('gMask.jpg',gMask*255)
+    #cv2.imwrite('rMask.jpg',rMask*255)
 
     # deal with 0 division by masking 0-val diffs to arbitrary number(1)
     diffCopy = np.where(diff != 0, diff,1)
@@ -46,11 +46,10 @@ def pilToCV(img):
     return bgr
 
 def cvToPIL(img):
-    img = cv2.cvtColor(img,cv2.COLOR_BGR2RGB)
+    img = cv2.cvtColor(img.astype('uint8'),cv2.COLOR_BGR2RGB)
     img = Image.fromarray(img)
     return img
         
-
 def maskToRGB(mask):
     return mask*255
 
@@ -204,6 +203,9 @@ def erosion(inp,kernSize,it=1):
 # in relation to img
 # assume mask is 0
 def overlayMask(img,mask,x0,y0,scale=1):
+    if(len(img.shape) == 2): # grayscale, then convert to rgb
+        img = np.dstack([img,img,img])
+    print(img.shape,mask.shape)
     if(x0+mask.shape[1] <= img.shape[1] and y0+mask.shape[0] <= img.shape[0]):
         centering = cvtGray(mask).astype('float32')-230 # converts to gray, removes most
         centering = np.dstack([centering,centering,centering]) # now we only want the negative values to be 1

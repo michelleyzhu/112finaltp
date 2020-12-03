@@ -42,9 +42,12 @@ class Studio(App):
         self.recordButt = Button("click to start recording",l,  self.oMarg,200,50)
         self.vidButt = Button("video version",l,                self.oMarg + 50,200,50)
         self.default = Button("default cartoon",l,              self.oMarg + 100+self.iMarg,200,50)
-        self.dotCartoon = Button("dotted half print filter",l,  self.oMarg + 150+self.iMarg,200,50)
+        self.dotCartoon = Button("pointilist filter",l,  self.oMarg + 150+self.iMarg,200,50)
         self.pastel = Button("pastel filter",l,                 self.oMarg + 200+self.iMarg,200,50)
-        self.buttons = [self.recordButt, self.vidButt, self.dotCartoon, self.pastel, self.default]
+        self.sketch = Button("sketch filter",l,                 self.oMarg + 250+self.iMarg,200,50)
+        self.vignette = Button("vignette filter",l,                 self.oMarg + 300+self.iMarg,200,50)
+        self.benday = Button("halftone filter",l,                 self.oMarg + 350+self.iMarg,200,50)
+        self.buttons = [self.recordButt, self.vidButt, self.dotCartoon, self.pastel, self.sketch,self.vignette,self.benday,self.default]
         
         self.studioRegion = StudioRegion("studio",0,0,self.pBarLeft, self.gBarTop,1/4,self.maxClips)
         self.savedRegion = SavedRegion("saved",self.pBarLeft,100,self.width-self.pBarLeft, self.gBarTop-100,0.1,10)
@@ -127,6 +130,12 @@ class Studio(App):
                 self.currEditorRegion.applyFilter('pastel')
             elif(self.default.isClicked(event.x,event.y)):
                 self.currEditorRegion.applyFilter('default')
+            elif(self.sketch.isClicked(event.x,event.y)):
+                self.currEditorRegion.applyFilter('sketch')
+            elif(self.vignette.isClicked(event.x,event.y)):
+                self.currEditorRegion.applyFilter('vignette')
+            elif(self.benday.isClicked(event.x,event.y)):
+                self.currEditorRegion.applyFilter('benday')
         for region in self.regions:
             if(not region.active): continue # if inactive, don't respond to dragging
             for i in range(len(region.drawables)):

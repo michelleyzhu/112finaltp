@@ -211,11 +211,17 @@ class EditorRegion(Region):
         # applying filter
         tempImg = tempClip.origImg
         if(self.filter == 'dot'):
-            tempImg = dotFilter(tempImg)
+            tempImg = halfDotFilter(tempImg,cart(tempImg))
         elif(self.filter == 'pastel'):
-            tempImg = pastelFilter(tempImg)
+            tempImg = pastelFilter(cart(tempImg))
         elif(self.filter == 'default'):
             tempImg = cart(tempImg)
+        elif(self.filter == 'sketch'):
+            tempImg = cannyFilter(tempImg)
+        elif(self.filter == 'vignette'):
+            tempImg = vignette(tempImg,cart(tempImg))
+        elif(self.filter == 'benday'):
+            tempImg = halftone(tempImg)
         
         for graphic in self.drawables[1:]:
             ratio = 1
