@@ -3,6 +3,7 @@ import cv2 as cv2
 import numpy as np
 #from tkinter import *
 from cmu_112_graphics import *
+from cvhelpers import *
 from fakecv import *
 from widgets import *
 
@@ -285,7 +286,7 @@ class Studio(App):
             self.processVid()
         
         ret, self.frame = self.vid.read()
-        self.imgCartoon = cartoonify(self.frame)
+        self.imgCartoon = cart(self.frame) #AHHHH
         if(self.vidOut != None):
             self.writeToVid()
         #self.imgPanel = self.imgCartoon.copy()

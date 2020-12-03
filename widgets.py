@@ -5,6 +5,7 @@ from tkinter import *
 from cmu_112_graphics import *
 from PIL import Image
 from fakecv import *
+from cvhelpers import *
 
 bubbleRatio = 3.5
 # #fe4a49 • #2ab7ca • #fed766 • #e6e6ea • #f4f4f8
@@ -214,7 +215,7 @@ class EditorRegion(Region):
         elif(self.filter == 'pastel'):
             tempImg = pastelFilter(tempImg)
         elif(self.filter == 'default'):
-            tempImg = cartoonify(tempImg)
+            tempImg = cart(tempImg)
         
         for graphic in self.drawables[1:]:
             ratio = 1
