@@ -415,13 +415,20 @@ class Button():
         return False
 
 class ImageButton(Button):
-    def __init__(self,label,cX,cY,image,hoverImage=None):
+    def __init__(self,label,cX,cY,image,hoverImage=None,swapped=False):
         self.bw,self.bh = image.size
         self.img = image
         self.label = label
         self.hoverImg = hoverImage
         self.bx,self.by = cX - self.bw//2, cY - self.bh//2
         self.hover = False
+        self.swapped = swapped
+        if(self.swapped):
+            self.swapHover()
+
+    def swapHover(self):
+        self.hoverImg, self.img = self.img, self.hoverImg
+        self.swapped = not self.swapped
 
     def checkHover(self,x,y):
         clicked = self.isClicked(x,y)

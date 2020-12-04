@@ -7,81 +7,9 @@ import tkinter.font as tkFont
 from cvhelpers import *
 from fakecv import *
 from widgets import *
-# Directly copied from https://www.cs.cmu.edu/~112/notes/notes-recursion-part2.html#removeTempFiles
-def removeTempFiles(path, suffix='.DS_Store'):
-    if path.endswith(suffix):
-        print(f'Removing file: {path}')
-        os.remove(path)
-    elif os.path.isdir(path):
-        for filename in os.listdir(path):
-            removeTempFiles(path + '/' + filename, suffix)
-
+from modes import *
 
 ##### CITATION: see importGraphics() for citation of images #####
-class SplashScreenMode(Mode):
-    def appStarted(mode):
-        w,h = mode.width,mode.height
-        x,y = w//2,h//2 + 200
-        mode.title = mode.loadImage(f"graphics/backgrounds/title.png")
-        mode.startButt = ImageButton('start',x,y,Image.open(f'graphics/splashes/start.png'),Image.open(f'graphics/splashes/startHover.png'))
-        mode.aboutButt = ImageButton('about',x-200,y,Image.open(f'graphics/splashes/about.png'),Image.open(f'graphics/splashes/aboutHover.png'))
-        mode.helpButt = ImageButton('help',x+200,y,Image.open(f'graphics/splashes/tips.png'),Image.open(f'graphics/splashes/tipsHover.png'))
-        mode.buttons = [mode.startButt,mode.aboutButt,mode.helpButt]
-
-    def redrawAll(mode, canvas):
-        canvas.create_image(mode.width//2, mode.height//2,image=ImageTk.PhotoImage(mode.title))
-        for butt in mode.buttons:
-            butt.draw(canvas)
-
-    def mouseMoved(mode,event):
-        for butt in mode.buttons:
-            if(butt.checkHover(event.x,event.y)): return
-
-    def mousePressed(mode,event):
-        if(mode.startButt.isClicked(event.x,event.y)):
-            mode.app.setActiveMode(mode.app.gameMode)
-        elif(mode.aboutButt.isClicked(event.x,event.y)):
-            mode.app.setActiveMode(mode.app.aboutMode)
-        elif(mode.helpButt.isClicked(event.x,event.y)):
-            mode.app.setActiveMode(mode.app.helpMode)
-            
-class HelpMode(Mode):
-    def appStarted(mode):
-        w,h = mode.width,mode.height
-        x,y = w//2,h//2 - 100
-        mode.border = mode.loadImage(f"graphics/backgrounds/border.png")
-        mode.backButt = ImageButton('back',x,mode.height-100,Image.open(f'graphics/splashes/back.png'),Image.open(f'graphics/splashes/backHover.png'))
-        
-    def redrawAll(mode, canvas):
-        canvas.create_text(mode.width//2,mode.height//2,text='hello, instructions here',fill='blue')
-        canvas.create_image(mode.width//2, mode.height//2,image=ImageTk.PhotoImage(mode.border))
-        mode.backButt.draw(canvas)
-    
-    def mouseMoved(mode,event):
-        mode.backButt.checkHover(event.x,event.y)
-    
-    def mousePressed(mode,event):
-        if(mode.backButt.isClicked(event.x,event.y)):
-            mode.app.setActiveMode(mode.app.splashScreenMode)
-        
-class AboutMode(Mode):
-    def appStarted(mode):
-        w,h = mode.width,mode.height
-        x,y = w//2,h//2 - 100
-        mode.border = mode.loadImage(f"graphics/backgrounds/border.png")
-        mode.backButt = ImageButton('back',x,mode.height-100,Image.open(f'graphics/splashes/back.png'),Image.open(f'graphics/splashes/backHover.png'))
-        
-    def redrawAll(mode, canvas):
-        canvas.create_text(mode.width//2,mode.height//2,text='hello, about info here',fill='blue')
-        canvas.create_image(mode.width//2, mode.height//2,image=ImageTk.PhotoImage(mode.border))
-        mode.backButt.draw(canvas)
-    
-    def mouseMoved(mode,event):
-        mode.backButt.checkHover(event.x,event.y)
-    
-    def mousePressed(mode,event):
-        if(mode.backButt.isClicked(event.x,event.y)):
-            mode.app.setActiveMode(mode.app.splashScreenMode)
 
 # #fe4a49 • #2ab7ca • #fed766 • #e6e6ea • #f4f4f8
 class Studio(Mode):
@@ -109,7 +37,6 @@ class Studio(Mode):
         self.finishing = False
         self.title = ''
         self.congratsTimer,self.congrats = 0, False
-
         # margins
         self.pBarLeft, self.gBarTop, self.sBarTop = 870, 480, 200
         self.headerMarg = 40
@@ -128,7 +55,7 @@ class Studio(Mode):
 
         self.bg = Image.open(f'graphics/backgrounds/frame.png')
 
-        x,y = self.oMarg+self.pBarLeft//2, self.gBarTop + self.headerMarg 
+        x,y = 770, self.gBarTop + self.headerMarg +15
         self.default = ImageButton("default",x,y, Image.open(f'graphics/filters/default.png'),Image.open(f'graphics/filters/defaultHover.png'))
         self.dotCartoon = ImageButton("dot",x,  y+50,Image.open(f'graphics/filters/pointilist.png'),Image.open(f'graphics/filters/pointilistHover.png'))
         #self.pastel = ImageButton("pastel filter",l,                 self.oMarg + 200+self.iMarg,200,50)
@@ -137,30 +64,61 @@ class Studio(Mode):
         self.benday = ImageButton("benday",x, y+200, Image.open(f'graphics/filters/halftone.png'),Image.open(f'graphics/filters/halftoneHover.png'))
         self.buttons = [self.dotCartoon, self.sketch,self.vignette,self.benday,self.default]
         
+
+        img = Image.open(f'graphics/labels/sounds.png')
+        self.soundsButton = ImageButton('sounds',self.oMarg+170+img.size[0]//2,self.oMarg+self.gBarTop+img.size[1]//2,img,Image.open(f'graphics/labels/soundsHover.png'),swapped=True)
+        self.bwButton = ImageButton('bw',self.oMarg+320+2*img.size[0]//2,self.oMarg+self.gBarTop+img.size[1]//2,Image.open(f'graphics/labels/graphics.png'),Image.open(f'graphics/labels/graphicsHover.png'),swapped=False)
+        self.bubblesButton = ImageButton('speech',self.oMarg+470+3*img.size[0]//2,self.oMarg+self.gBarTop+img.size[1]//2,Image.open(f'graphics/labels/bubbles.png'),Image.open(f'graphics/labels/bubblesHover.png'),swapped=False)
+        
+        self.currGraphicButton = self.soundsButton
+
+        self.graphicButtons = [self.soundsButton,self.bwButton,self.bubblesButton]
+
         self.studioRegion = StudioRegion("studio",0,self.headerMarg,self.pBarLeft, self.gBarTop-self.headerMarg,1/4,self.maxClips)
         self.savedRegion = SavedRegion("saved",self.pBarLeft,self.sBarTop+self.headerMarg,self.width-self.pBarLeft, self.gBarTop-self.sBarTop,0.1,10)
-        self.graphicsRegion = GraphicsRegion('graphics',0,self.gBarTop,self.pBarLeft,self.height-self.gBarTop,0.3,20,self.graphics)
-        self.regions = [self.studioRegion, self.savedRegion,self.graphicsRegion]
+        
+        x,y,w,h = 0,self.gBarTop+20,self.pBarLeft-200,self.height-self.gBarTop-20
+        self.bubbleRegion = GraphicsRegion('speech',x,y,w,h,0.3,20,self.bubbles)
+        self.soundsRegion = GraphicsRegion('sounds',x,y,w,h,0.3,20,self.sounds)
+        self.bwRegion = GraphicsRegion('bw',x,y,w,h,0.3,20,self.bw)
+
+        self.selectGraphicRegion(self.soundsRegion)
+        self.graphicsRegions = [self.bubbleRegion,self.soundsRegion,self.bwRegion]
+
+        self.regions = [self.studioRegion, self.savedRegion,self.bubbleRegion,self.soundsRegion,self.bwRegion]
+
+    def selectGraphicRegion(self,reg):
+        if(reg == self.bubbleRegion):
+            self.bubbleRegion.active = True
+            self.soundsRegion.active = False
+            self.bwRegion.active = False
+        elif(reg == self.soundsRegion):
+            self.bubbleRegion.active = False
+            self.soundsRegion.active = True
+            self.bwRegion.active = False
+        elif(reg == self.bwRegion):
+            self.bubbleRegion.active = False
+            self.soundsRegion.active = False
+            self.bwRegion.active = True
 
 
-    
     # bubbles: 211558518, https://depositphotos.com/211558518/stock-illustration-big-set-empty-speech-bubble.html
     # black/white(graphics/bw): Max Luczynski, https://www.behance.net/gallery/47977047/One-Hundred-hand-drawn-cartoon-and-comic-symbols
     # explosions(graphics/colors): Tartila 20799751, https://www.vectorstock.com/royalty-free-vector/exclamation-texting-comic-signs-on-speech-bubbles-vector-20799751
     def importGraphics(self):
-        self.graphics = []
-        for f in os.listdir('graphics/comics/bubbles'):
+        self.bubbles, self.bw, self.sounds = [],[],[]
+        for f in os.listdir('graphics/comics/bubbles'): # BUBBLES
             img = self.loadImage(f"graphics/comics/bubbles/{f}")
             graphicAsClip = Clip(img,img,0,0,img.size[0],img.size[1],typ='bubble')
-            self.graphics.append(graphicAsClip)
-        for f in os.listdir('graphics/comics/colors'):
+            self.bubbles.append(graphicAsClip)
+        for f in os.listdir('graphics/comics/colors'): # COLORS
             img = self.loadImage(f"graphics/comics/colors/{f}")
             graphicAsClip = Clip(img,img,0,0,img.size[0],img.size[1],typ='graphic')
-            self.graphics.append(graphicAsClip)
-        for f in os.listdir('graphics/comics/bw'):
+            self.sounds.append(graphicAsClip)
+        for f in os.listdir('graphics/comics/bw'): # BW
             img = self.loadImage(f"graphics/comics/bw/{f}")
             graphicAsClip = Clip(img,img,0,0,img.size[0],img.size[1],typ='graphic')
-            self.graphics.append(graphicAsClip)
+            self.bw.append(graphicAsClip)
         img = Image.open(f'graphics/labels/editor.png')
         self.editorLabel = ('editor',self.oMarg+img.size[0]//2,self.oMarg+img.size[1]//2,img)
         img = Image.open(f'graphics/labels/saved.png')
@@ -206,12 +164,23 @@ class Studio(Mode):
         elif(not self.editing and self.saveButt.isClicked(event.x,event.y)):
             self.finishing = True
             self.enterText = True
+            return
         elif(self.commandButt.isClicked(event.x,event.y)):
             print('command butt clicked') # toggle overlay with command strip(maybe to the left?)
+            return
+        
+        for butt in self.graphicButtons:
+            if(butt.isClicked(event.x,event.y) and butt.label != self.currGraphicButton.label):# and self.graphicsRegionActive(butt.label)):
+                self.selectGraphicRegion(self.regionWithName(butt.label))
+                butt.swapHover()
+                self.currGraphicButton.swapHover()
+                self.currGraphicButton = butt
+        
         if(self.editing):
             for butt in self.buttons:
                 if(butt.isClicked(event.x,event.y)):
                     self.currEditorRegion.applyFilter(butt.label)
+                    return
         for region in self.regions:
             if(not region.active): continue # if inactive, don't respond to dragging
             for i in range(len(region.drawables)):
@@ -220,7 +189,7 @@ class Studio(Mode):
                 if(region.canMove(i) and drawable.isClicked(event.x,event.y)):
                     self.dragX, self.dragY, self.draggedClip = event.x,event.y,drawable
                     self.prevRegion = region
-                    if(region != self.graphicsRegion): # if graphics, double clicking shouldn't do anything
+                    if(not self.isGraphicsRegion(region.name)): # if graphics, double clicking shouldn't do anything
                         if(self.doubleClickStarted):
                             if(time.time() - self.timeAt <= 1):
                                 self.openEditor(drawable)
@@ -229,12 +198,27 @@ class Studio(Mode):
                             self.doubleClickStarted = True
                             self.timeAt = time.time()
                     return
-                
+    
+    def regionWithName(self,regName):
+        for reg in self.graphicsRegions:
+            if(reg.name == regName):
+                return reg
+
+    def graphicsRegionActive(self,regName):
+        for reg in self.graphicsRegions:
+            if(reg.name == regName):
+                if(reg.active):
+                    return True
+                return False
+
+    def isGraphicsRegion(self,regName):
+        return regName == self.soundsRegion.name or regName == self.bwRegion.name or regName == self.bubbleRegion.name
+
     def openEditor(self,drawable):
         self.editing = True
         self.currEditorRegion = drawable.editor
         for region in self.regions:
-            if(region.name != 'graphics'):
+            if(not self.isGraphicsRegion(region.name)):
                 region.active = False
         drawable.editor.active = True
         
@@ -264,6 +248,7 @@ class Studio(Mode):
                     i+=1
                 if(type(region) != EditorRegion):
                     region.active = True
+                self.selectGraphicRegion(self.regionWithName(self.currGraphicButton.label))
             self.currEditorRegion.active = False
         elif(self.enterText):
             if(event.key == 'Enter' or event.key == 'Escape'):
@@ -413,7 +398,9 @@ class Studio(Mode):
     def drawBoard(self,canvas):
         if(self.editing):
             self.currEditorRegion.draw(canvas,False)
-            self.graphicsRegion.draw(canvas,False)
+            for region in self.graphicsRegions:
+                if(region.active):
+                    region.draw(canvas,False)
         else:
             for region in self.regions:
                 if(region.active):
@@ -445,9 +432,14 @@ class Studio(Mode):
         else:
             canvas.create_text(x,y,fill='gray',text=f'when you write in text bubbles, \nyour text will appear here!',font=self.small,anchor='nw')
             
+    def drawGraphicsButtons(self,canvas):
+        for butt in self.graphicButtons:
+            butt.draw(canvas)
+
     def redrawAll(self, canvas):
         self.drawFrame(canvas)
         self.drawControlPanel(canvas)
+        self.drawGraphicsButtons(canvas)
         self.drawBoard(canvas)
         self.drawLabels(canvas)
         self.drawTextBox(canvas)
