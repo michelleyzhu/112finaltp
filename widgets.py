@@ -136,14 +136,18 @@ class StudioRegion(Region):
     def canMove(self,drawableI):
         return self.shownDrawables[drawableI]
 
-    def finish(self):
+    def finish(self,title=''):
         w,h = self.drawables[0].editor.finalProduct.w,self.drawables[0].editor.finalProduct.h
         final = Image.new('RGB',(2*w+2*self.xMarg+self.iMarg,2*h+2*self.yMarg+self.iMarg),(255,255,255))
         for i in range(self.size):
             if(self.shownDrawables[i]):
                 clip = self.drawables[i].editor.finalProduct
                 final.paste(clip.img,(self.xMarg+(i%2)*(clip.w+self.iMarg),self.yMarg+(i//2)*(clip.h+self.iMarg)))
+        cv = pilToCV(final)
+        cv = insertTitle(cv,title)
+        final = cvToPIL(cv)
         final.save('finalProduct.png','PNG')
+        
 
     def draw(self,canvas,littleText=True):
         for i in range(self.size):
@@ -282,14 +286,10 @@ class EditorRegion(Region):
             self.finishedBubble = False
         if(self.textUpdated != None):
             mess,cX,cY,graphic,size = self.textUpdated
-            messages = mess.replace("`", "\n")#mess.split('`').join('\n')
+            messages = mess.replace("`", "\n")
             x,y = 930,615#pBarLeft + oMarg, gBarTop + oMarg
-            #canvas.create_text(x,y,fill='red',text=f'text size: {self.textSize}',font=f'helvetica 13 bold',anchor='nw')
             canvas.create_text(x,y+20,fill='gray',text=messages,font=self.small,anchor='nw')
             y += 16
-            #for m in messages:
-            #    canvas.create_text(x,y,fill='blue',text=m,font=f'helvetica 13 bold',anchor='nw')
-            #    y += 16 # what will the difference be? Check
 
         self.finalProduct.draw(canvas,False) # false b/c not drawing little text
         

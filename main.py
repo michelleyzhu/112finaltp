@@ -22,12 +22,10 @@ class SplashScreenMode(Mode):
     def appStarted(mode):
         w,h = mode.width,mode.height
         x,y = w//2,h//2 + 200
-        removeTempFiles('splashButts')
-        removeTempFiles('bgs')
-        mode.title = mode.loadImage(f"bgs/title.png")
-        mode.startButt = ImageButton('start',x,y,Image.open(f'splashButts/start.png'),Image.open(f'splashButts/startHover.png'))
-        mode.aboutButt = ImageButton('about',x-200,y,Image.open(f'splashButts/about.png'),Image.open(f'splashButts/aboutHover.png'))
-        mode.helpButt = ImageButton('help',x+200,y,Image.open(f'splashButts/tips.png'),Image.open(f'splashButts/tipsHover.png'))
+        mode.title = mode.loadImage(f"graphics/backgrounds/title.png")
+        mode.startButt = ImageButton('start',x,y,Image.open(f'graphics/splashes/start.png'),Image.open(f'graphics/splashes/startHover.png'))
+        mode.aboutButt = ImageButton('about',x-200,y,Image.open(f'graphics/splashes/about.png'),Image.open(f'graphics/splashes/aboutHover.png'))
+        mode.helpButt = ImageButton('help',x+200,y,Image.open(f'graphics/splashes/tips.png'),Image.open(f'graphics/splashes/tipsHover.png'))
         mode.buttons = [mode.startButt,mode.aboutButt,mode.helpButt]
 
     def redrawAll(mode, canvas):
@@ -51,8 +49,8 @@ class HelpMode(Mode):
     def appStarted(mode):
         w,h = mode.width,mode.height
         x,y = w//2,h//2 - 100
-        mode.border = mode.loadImage(f"bgs/border.png")
-        mode.backButt = ImageButton('back',x,mode.height-100,Image.open(f'splashButts/back.png'),Image.open(f'splashButts/backHover.png'))
+        mode.border = mode.loadImage(f"graphics/backgrounds/border.png")
+        mode.backButt = ImageButton('back',x,mode.height-100,Image.open(f'graphics/splashes/back.png'),Image.open(f'graphics/splashes/backHover.png'))
         
     def redrawAll(mode, canvas):
         canvas.create_text(mode.width//2,mode.height//2,text='hello, instructions here',fill='blue')
@@ -70,8 +68,8 @@ class AboutMode(Mode):
     def appStarted(mode):
         w,h = mode.width,mode.height
         x,y = w//2,h//2 - 100
-        mode.border = mode.loadImage(f"bgs/border.png")
-        mode.backButt = ImageButton('back',x,mode.height-100,Image.open(f'splashButts/back.png'),Image.open(f'splashButts/backHover.png'))
+        mode.border = mode.loadImage(f"graphics/backgrounds/border.png")
+        mode.backButt = ImageButton('back',x,mode.height-100,Image.open(f'graphics/splashes/back.png'),Image.open(f'graphics/splashes/backHover.png'))
         
     def redrawAll(mode, canvas):
         canvas.create_text(mode.width//2,mode.height//2,text='hello, about info here',fill='blue')
@@ -106,6 +104,11 @@ class Studio(Mode):
         self.textSize = 1.75
         self.labels = []
         self.small = tkFont.Font(family='Avenir',size=13)  
+        self.bold = tkFont.Font(family='Avenir',size=14,weight='bold')  
+        self.large = tkFont.Font(family='Avenir',size=18,weight='bold')  
+        self.finishing = False
+        self.title = ''
+        self.congratsTimer,self.congrats = 0, False
 
         # margins
         self.pBarLeft, self.gBarTop, self.sBarTop = 870, 480, 200
@@ -118,20 +121,20 @@ class Studio(Mode):
     def initializeStudio(self):
         l = self.pBarLeft + self.oMarg
         x,y = (self.pBarLeft+self.width)//2, self.headerMarg+self.iMarg 
-        self.recordButt = ImageButton("record",x,y, Image.open(f'controls/snap.png'),Image.open(f'controls/snapHover.png'))
-        self.commandButt = ImageButton("command",x,y+75, Image.open(f'controls/helpMenu.png'),Image.open(f'controls/helpMenuHover.png'))
-        self.saveButt = ImageButton('save',x,y+150,Image.open(f'controls/save.png'),Image.open(f'controls/saveHover.png'))
+        self.recordButt = ImageButton("record",x,y, Image.open(f'graphics/controls/snap.png'),Image.open(f'graphics/controls/snapHover.png'))
+        self.commandButt = ImageButton("command",x,y+75, Image.open(f'graphics/controls/helpMenu.png'),Image.open(f'graphics/controls/helpMenuHover.png'))
+        self.saveButt = ImageButton('save',x,y+150,Image.open(f'graphics/controls/save.png'),Image.open(f'graphics/controls/saveHover.png'))
         self.controls = [self.recordButt,self.commandButt,self.saveButt]
 
-        self.bg = Image.open(f'frame.png')
+        self.bg = Image.open(f'graphics/backgrounds/frame.png')
 
         x,y = self.oMarg+self.pBarLeft//2, self.gBarTop + self.headerMarg 
-        self.default = ImageButton("default",x,y, Image.open(f'buttons/default.png'),Image.open(f'buttons/defaultHover.png'))
-        self.dotCartoon = ImageButton("dot",x,  y+50,Image.open(f'buttons/pointilist.png'),Image.open(f'buttons/pointilistHover.png'))
+        self.default = ImageButton("default",x,y, Image.open(f'graphics/filters/default.png'),Image.open(f'graphics/filters/defaultHover.png'))
+        self.dotCartoon = ImageButton("dot",x,  y+50,Image.open(f'graphics/filters/pointilist.png'),Image.open(f'graphics/filters/pointilistHover.png'))
         #self.pastel = ImageButton("pastel filter",l,                 self.oMarg + 200+self.iMarg,200,50)
-        self.sketch = ImageButton("sketch",x,     y+100, Image.open(f'buttons/sketch.png'),Image.open(f'buttons/sketchHover.png'))
-        self.vignette = ImageButton("vignette",x,  y+150, Image.open(f'buttons/vignette.png'),Image.open(f'buttons/vignetteHover.png'))
-        self.benday = ImageButton("benday",x, y+200, Image.open(f'buttons/halftone.png'),Image.open(f'buttons/halftoneHover.png'))
+        self.sketch = ImageButton("sketch",x,     y+100, Image.open(f'graphics/filters/sketch.png'),Image.open(f'graphics/filters/sketchHover.png'))
+        self.vignette = ImageButton("vignette",x,  y+150, Image.open(f'graphics/filters/vignette.png'),Image.open(f'graphics/filters/vignetteHover.png'))
+        self.benday = ImageButton("benday",x, y+200, Image.open(f'graphics/filters/halftone.png'),Image.open(f'graphics/filters/halftoneHover.png'))
         self.buttons = [self.dotCartoon, self.sketch,self.vignette,self.benday,self.default]
         
         self.studioRegion = StudioRegion("studio",0,self.headerMarg,self.pBarLeft, self.gBarTop-self.headerMarg,1/4,self.maxClips)
@@ -146,29 +149,27 @@ class Studio(Mode):
     # explosions(graphics/colors): Tartila 20799751, https://www.vectorstock.com/royalty-free-vector/exclamation-texting-comic-signs-on-speech-bubbles-vector-20799751
     def importGraphics(self):
         self.graphics = []
-        removeTempFiles('comics')
-        for f in os.listdir('comics/bubbles'):
-            img = self.loadImage(f"comics/bubbles/{f}")
+        for f in os.listdir('graphics/comics/bubbles'):
+            img = self.loadImage(f"graphics/comics/bubbles/{f}")
             graphicAsClip = Clip(img,img,0,0,img.size[0],img.size[1],typ='bubble')
             self.graphics.append(graphicAsClip)
-        for f in os.listdir('comics/colors'):
-            img = self.loadImage(f"comics/colors/{f}")
+        for f in os.listdir('graphics/comics/colors'):
+            img = self.loadImage(f"graphics/comics/colors/{f}")
             graphicAsClip = Clip(img,img,0,0,img.size[0],img.size[1],typ='graphic')
             self.graphics.append(graphicAsClip)
-        for f in os.listdir('comics/bw'):
-            img = self.loadImage(f"comics/bw/{f}")
+        for f in os.listdir('graphics/comics/bw'):
+            img = self.loadImage(f"graphics/comics/bw/{f}")
             graphicAsClip = Clip(img,img,0,0,img.size[0],img.size[1],typ='graphic')
             self.graphics.append(graphicAsClip)
-        removeTempFiles('labels')
-        img = Image.open(f'labelsButts/editor.png')
+        img = Image.open(f'graphics/labels/editor.png')
         self.editorLabel = ('editor',self.oMarg+img.size[0]//2,self.oMarg+img.size[1]//2,img)
-        img = Image.open(f'labelsButts/saved.png')
+        img = Image.open(f'graphics/labels/saved.png')
         self.savedLabel = ('saved',self.oMarg+self.pBarLeft+img.size[0]//2,self.oMarg+self.sBarTop+img.size[1]//2,img)
-        img = Image.open(f'labelsButts/studio.png')
+        img = Image.open(f'graphics/labels/studio.png')
         self.studioLabel = ('studio',self.oMarg+img.size[0]//2,self.oMarg+img.size[1]//2,img)
-        img = Image.open(f'labelsButts/effects.png')
+        img = Image.open(f'graphics/labels/effects.png')
         self.effectsLabel = ('effects',self.oMarg+img.size[0]//2,self.oMarg+self.gBarTop+img.size[1]//2,img)
-        img = Image.open(f'labelsButts/edittext.png')
+        img = Image.open(f'graphics/labels/edittext.png')
         self.editLabel = ('text',self.oMarg+self.pBarLeft+img.size[0]//2,self.oMarg+self.gBarTop+img.size[1]//2,img)
         self.labels = [self.editorLabel, self.savedLabel, self.studioLabel, self.effectsLabel, self.editLabel]
 
@@ -203,7 +204,8 @@ class Studio(Mode):
             self.toggleRecordButton()
             return
         elif(not self.editing and self.saveButt.isClicked(event.x,event.y)):
-            self.studioRegion.finish() # implement title entry
+            self.finishing = True
+            self.enterText = True
         elif(self.commandButt.isClicked(event.x,event.y)):
             print('command butt clicked') # toggle overlay with command strip(maybe to the left?)
         if(self.editing):
@@ -238,9 +240,21 @@ class Studio(Mode):
         
     def keyPressed(self,event):
         # can't escape when entering text
-        if(not self.editing and event.key == 'k'):
-            self.studioRegion.finish()
-        if(self.editing and not self.enterText and event.key == "Escape"):
+        if(self.finishing):
+            if(event.key == 'Enter'):
+                self.studioRegion.finish(self.title)
+                self.finishing = False
+                self.enterText = False
+                self.congratsTimer,self.congrats = time.time(), True
+            else:
+                newChar = event.key
+                if(newChar == 'Delete' and len(self.title) > 0):
+                    self.title = self.title[:len(self.title)-1]
+                else:
+                    if(newChar == 'Space'):
+                        newChar = ' '
+                    self.title += newChar
+        elif(self.editing and not self.enterText and event.key == "Escape"):
             self.editing = False
             for region in self.regions:
                 i = 0
@@ -251,7 +265,7 @@ class Studio(Mode):
                 if(type(region) != EditorRegion):
                     region.active = True
             self.currEditorRegion.active = False
-        if(self.enterText):
+        elif(self.enterText):
             if(event.key == 'Enter' or event.key == 'Escape'):
                 self.enterText = False
                 self.currEditorRegion.finishedBubble = True
@@ -392,6 +406,9 @@ class Studio(Mode):
     def timerFired(self):
         if(self.recording):
             self.record()
+        if(self.congrats and time.time()-self.congratsTimer >= 3):
+            self.congrats = False
+            self.title = ''
     
     def drawBoard(self,canvas):
         if(self.editing):
@@ -420,7 +437,10 @@ class Studio(Mode):
 
     def drawTextBox(self,canvas):
         x, y = self.pBarLeft + self.oMarg+2*self.iMarg, self.gBarTop + self.oMarg + 95
-        if(self.enterText):
+        if(self.finishing):
+            canvas.create_text(x,y+20,fill='gray',text='enter the title of your\ncomic and press ENTER to save:',font=self.bold,anchor='nw')
+            canvas.create_text(x,y+60,fill='gray',text=self.title,font=self.small,anchor='nw')
+        elif(self.enterText):
             canvas.create_text(x,y,fill='gray',text=f'TEXT SIZE: {int(self.textSize*12)}\nPress up/down arrows to change.',font=self.small,anchor='nw')
         else:
             canvas.create_text(x,y,fill='gray',text=f'when you write in text bubbles, \nyour text will appear here!',font=self.small,anchor='nw')
@@ -431,9 +451,12 @@ class Studio(Mode):
         self.drawBoard(canvas)
         self.drawLabels(canvas)
         self.drawTextBox(canvas)
+        if(self.congrats):
+            canvas.create_text(200,self.height//2,fill='gray',text=f'nice! \'{self.title}\' saved to finalProduct.png, go take a look!',font=self.large,anchor='nw')
     
 class MyModalApp(ModalApp):
     def appStarted(app):
+        removeTempFiles('graphics')
         app.splashScreenMode = SplashScreenMode()
         app.gameMode = Studio()
         app.helpMode = HelpMode()

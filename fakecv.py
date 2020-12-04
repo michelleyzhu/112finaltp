@@ -466,7 +466,13 @@ def outline(img,width):
     bg = np.zeros(img.shape)
     bg[width:img.shape[0]-width,width:img.shape[1]-width] = 1
     return img*bg
-    
+
+def insertTitle(img,title):
+    img[40:100,40:500,:] = 200
+    img[42:98,42:498,:] = 0
+    img = insertText(img,title,(42,95),(255,255,255),1.75)
+    return img
+
 def justIm():
     
     
@@ -482,5 +488,5 @@ def justIm():
     cv2.imwrite("result.jpg",img)
     print("completed")
 
-justIm()
+#justIm()
 #dumb()
