@@ -205,7 +205,6 @@ def erosion(inp,kernSize,it=1):
 def overlayMask(img,mask,x0,y0,scale=1):
     if(len(img.shape) == 2): # grayscale, then convert to rgb
         img = np.dstack([img,img,img])
-    print(img.shape,mask.shape)
     if(x0+mask.shape[1] <= img.shape[1] and y0+mask.shape[0] <= img.shape[0]):
         centering = cvtGray(mask).astype('float32')-230 # converts to gray, removes most
         centering = np.dstack([centering,centering,centering]) # now we only want the negative values to be 1

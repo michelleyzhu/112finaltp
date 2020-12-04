@@ -3,11 +3,14 @@ import cv2 as cv2
 import numpy as np
 from tkinter import *
 from cmu_112_graphics import *
+import tkinter.font as tkFont
 from PIL import Image
 from fakecv import *
 from cvhelpers import *
 
 bubbleRatio = 3.5
+headerMarg = 20
+pBarLeft, gBarTop, sBarTop, oMarg = 870, 480, 200, 30
 # #fe4a49 • #2ab7ca • #fed766 • #e6e6ea • #f4f4f8
 class Region():
     def __init__(self,name,x,y,w,h,scale,size,drawables=None):
@@ -20,18 +23,18 @@ class Region():
             self.drawables = []
         else:
             self.drawables = drawables
-        self.oMarg, self.iMarg = 30, 10
-        self.currX, self.currY = self.oMarg+self.x0, self.oMarg+self.y0
+        self.xMarg, self.yMarg, self.iMarg = 40,50, 10
+        self.currX, self.currY = self.xMarg+self.x0, self.yMarg+self.y0
     
     def relocateAll(self):
-        self.currX, self.currY = self.oMarg+self.x0, self.oMarg+self.y0
+        self.currX, self.currY = self.xMarg+self.x0, self.yMarg+self.y0
         for drawable in self.drawables:
             self.locateDrawable(drawable)
-    
+            
     def locateDrawable(self,drawable):
         self.scaleDrawable(drawable)
         if(self.currX + drawable.w > self.x1):
-            self.currX = self.oMarg+self.x0
+            self.currX = self.xMarg+self.x0
             self.currY += self.iMarg + drawable.h
         drawable.x, drawable.y = self.currX, self.currY
         self.currX += self.iMarg + drawable.w
@@ -133,6 +136,15 @@ class StudioRegion(Region):
     def canMove(self,drawableI):
         return self.shownDrawables[drawableI]
 
+    def finish(self):
+        w,h = self.drawables[0].editor.finalProduct.w,self.drawables[0].editor.finalProduct.h
+        final = Image.new('RGB',(2*w+2*self.xMarg+self.iMarg,2*h+2*self.yMarg+self.iMarg),(255,255,255))
+        for i in range(self.size):
+            if(self.shownDrawables[i]):
+                clip = self.drawables[i].editor.finalProduct
+                final.paste(clip.img,(self.xMarg+(i%2)*(clip.w+self.iMarg),self.yMarg+(i//2)*(clip.h+self.iMarg)))
+        final.save('finalProduct.png','PNG')
+
     def draw(self,canvas,littleText=True):
         for i in range(self.size):
             if(self.shownDrawables[i]):
@@ -141,6 +153,7 @@ class StudioRegion(Region):
 class SavedRegion(Region):
     def __init__(self,name,x,y,w,h,scale,size):
         super().__init__(name,x,y,w,h,scale,size)
+        self.xMarg -= 10
         
     def addDrawable(self,drawable,uselessParam): # parameters need to align for for loop in main lol
         drawableCopy = drawable.copy()
@@ -162,12 +175,16 @@ class SavedRegion(Region):
             drawable.draw(canvas,littleText)
         
 class EditorRegion(Region):
-    def __init__(self,name,img,x,y,w,h,scale=0.6,size=1):
+    def __init__(self,name,img,x,y,w,h,scale=0.55,size=1):
         super().__init__(name,x,y,w,h,scale,size,drawables=[img])
-        self.oMarg = 0
+        self.oMarg, self.headerMarg = 50,20
         self.finalProduct = img
         self.filter = 'default'
         self.prevNumGraphics = 1
+        self.textUpdated = None
+        self.finishedBubble = False
+        self.small = tkFont.Font(family='Avenir',size=13)  
+        self.textSize = 1.75
         self.bubbleTexts = []
         self.relocateAll()
         self.active = False
@@ -199,11 +216,18 @@ class EditorRegion(Region):
             w,h = int(graphic.img.size[0]*bubbleRatio),int(graphic.img.size[1]*bubbleRatio)
             x0,y0 = graphic.x,graphic.y
             if(x0 < x < x0+w and y0 < y < y0+h):
-                return graphic.x + graphic.w*bubbleRatio*self.scale//2,graphic.y + graphic.h*bubbleRatio*self.scale//2,graphic
+                return graphic.x + graphic.w*bubbleRatio*self.scale//2,graphic.y + graphic.h*bubbleRatio*self.scale//2,graphic, 1.75
         return None
     
-    def insertBubbleText(self,text,x,y,graphic):
-        self.bubbleTexts.append((text,x,y,graphic))
+    def insertBubbleText(self,text,x,y,graphic,size):
+        for i in range(len(self.bubbleTexts)):
+            if(self.bubbleTexts[i][3] == graphic):
+                self.bubbleTexts[i] = (text,x,y,graphic,size)
+                self.textUpdated = (text,x,y,graphic,size)
+                return
+        self.bubbleTexts.append((text,x,y,graphic,size))
+        self.textUpdated = (text,x,y,graphic,size)
+
 
     def updateGraphics(self,filterChanged=False):
         # disaster? copy
@@ -231,25 +255,44 @@ class EditorRegion(Region):
                 ratio = 1.5
             scaledGraphic = graphic.img.resize((int(graphic.img.size[0]*ratio),int(graphic.img.size[1]*ratio)))
             mask = pilToCV(scaledGraphic)
-            tempImg = overlayMask(tempImg,mask,int((graphic.x-self.x0)/self.scale*1 - self.oMarg),int((graphic.y-self.y0)/self.scale - self.oMarg))
+            tempImg = overlayMask(tempImg,mask,int((graphic.x-self.x0)/self.scale*1 - self.oMarg),int((graphic.y-self.y0)/self.scale - self.headerMarg))
+        for message in self.bubbleTexts:
+            mess,cX,cY,graphic,size = message
+            messages = mess.split('`')
+            y = (cY - 26*size*(len(messages))/2+30)/self.scale# messages = # of lines
+            for m in messages:
+                x = (cX - 3*size*len(m)/2-60)/self.scale
+                tempImg = insertText(tempImg,f'{m}',(int(x),int(y)),(255,255,255),size)
+                y += 24*size # what will the difference be? Check
         tempImg = cvToPIL(tempImg)
 
         tempClip.img = tempImg # removed copy, disaster?
         tempClip.scaleImg(self.scale)
         self.finalProduct = tempClip.copy() # removed copy, disaster?
 
+    def updateTextSize(self,size):
+        self.textSize = size
     def applyFilter(self,filt):
         self.filter = filt
         self.updateGraphics(True)
-        
     def draw(self,canvas,littleText=False):
-        if(self.prevNumGraphics != len(self.drawables)):
+        if(self.prevNumGraphics != len(self.drawables) or self.finishedBubble):
             self.updateGraphics(False)
             self.prevNumGraphics = len(self.drawables)
+            self.finishedBubble = False
+        if(self.textUpdated != None):
+            mess,cX,cY,graphic,size = self.textUpdated
+            messages = mess.replace("`", "\n")#mess.split('`').join('\n')
+            x,y = 930,615#pBarLeft + oMarg, gBarTop + oMarg
+            #canvas.create_text(x,y,fill='red',text=f'text size: {self.textSize}',font=f'helvetica 13 bold',anchor='nw')
+            canvas.create_text(x,y+20,fill='gray',text=messages,font=self.small,anchor='nw')
+            y += 16
+            #for m in messages:
+            #    canvas.create_text(x,y,fill='blue',text=m,font=f'helvetica 13 bold',anchor='nw')
+            #    y += 16 # what will the difference be? Check
+
         self.finalProduct.draw(canvas,False) # false b/c not drawing little text
-        for message in self.bubbleTexts:
-            canvas.create_text(message[1],message[2]-100,fill='blue',text=message[0],font='helvetica 20 bold',anchor='n')
-    
+        
     def canMove(self,i):
         return False
 
@@ -291,9 +334,14 @@ class Clip():
         self.getScaledWs()
         self.getCenter()
         self.editor = editor
+
+        # draw rectangle:
+        if(typ=='img' and img != None):
+            self.img = cvToPIL(outline(pilToCV(self.img),self.w//90))
+
         self.smallBubbleTexts = smallBubbleTexts
         if(self.editor == []):
-            self.editor = EditorRegion(f"editor{getRandStr()}",self,0,0,w,h)
+            self.editor = EditorRegion(f"editor{getRandStr()}",self,0,headerMarg,w,h)
         
     def package(self,drawable):
         # removed a copy..l disaster?
@@ -310,7 +358,6 @@ class Clip():
             return self.name == clip.name
         return False
     def copy(self):
-        # DISASTER AWAIGIN
         return Clip(self.img,self.origImg,self.x,self.y,self.origW,self.origH,self.scale,getRandStr(),typ=self.typ,editor=self.editor,smallBubbleTexts=self.smallBubbleTexts) 
     def getCenter(self): self.cX,self.cY = self.x+self.w//2, self.y+self.h//2
     def scaleImg(self,newScale):
@@ -324,11 +371,6 @@ class Clip():
     def draw(self,canvas,littleText=True):
         iMarg = 10
         canvas.create_image(self.w//2+self.x, self.h//2+self.y,image=ImageTk.PhotoImage(self.img))
-        if(self.typ == 'img'):
-            canvas.create_rectangle(self.x,self.y,self.x+self.w,self.y+self.h,outline='black',width=iMarg//2)
-        if(littleText):
-            for message in self.smallBubbleTexts:
-                canvas.create_text(message[1],message[2],fill='blue',text=message[0],font='helvetica 10 bold',anchor='n')
         
     def click(self):
         canvas.create_text(self.cX,self.cY+self.bh,text=f"clicked??")
@@ -372,6 +414,28 @@ class Button():
             return True
         return False
 
+class ImageButton(Button):
+    def __init__(self,label,cX,cY,image,hoverImage=None):
+        self.bw,self.bh = image.size
+        self.img = image
+        self.label = label
+        self.hoverImg = hoverImage
+        self.bx,self.by = cX - self.bw//2, cY - self.bh//2
+        self.hover = False
+
+    def checkHover(self,x,y):
+        clicked = self.isClicked(x,y)
+        if(clicked != self.hover): # if changed
+            self.hover = clicked
+            return True
+        return False
+
+    def draw(self,canvas):
+        if(not self.hover):
+            canvas.create_image(self.bw//2+self.bx, self.bh//2+self.by,image=ImageTk.PhotoImage(self.img))
+        else:
+            canvas.create_image(self.bw//2+self.bx, self.bh//2+self.by,image=ImageTk.PhotoImage(self.hoverImg))
+        
 class cvButton(Button):
     def __init__(self,label,x,y,w,h,color='#fe4a49'):
         super().__init__(label,x,y,w,h)

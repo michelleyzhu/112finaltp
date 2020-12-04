@@ -34,8 +34,20 @@ for row in range(5):
         img = bombs[row*lilH:(row+1)*lilH, col*lilW:(col+1)*lilW]
         cv2.imwrite(f'graphics/ex{row}.{col}.png', img)
 '''
-for f in os.listdir('graphics'):
-    if(f[0:2] == 'bu'):
-        img = cv2.imread(f"graphics/{f}")
-        img = cv2.pyrDown(img)
-        cv2.imwrite(f'graphics/sp{f}', img)
+def removeTempFiles(path, suffix='.DS_Store'):
+        if path.endswith(suffix):
+            print(f'Removing file: {path}')
+            os.remove(path)
+        elif os.path.isdir(path):
+            for filename in os.listdir(path):
+                removeTempFiles(path + '/' + filename, suffix)
+removeTempFiles('labels')
+for f in os.listdir('labels'):
+    img = Image.open(f'labels/{f}')
+    w,h = img.size
+    img = img.resize((w//4,h//4))
+    img.save(f'labelsButts/{f}','PNG')
+'''
+    img = cv2.imread(f"labels/{f}")
+    img = cv2.resize(img,(img.shape[0]//10,img.shape[1]//10))
+    cv2.imwrite(f'labels/new{f}', img)'''

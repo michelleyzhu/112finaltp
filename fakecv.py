@@ -180,7 +180,7 @@ def genConvolve(inp,kernel,scale=True):
         output = scaleRGB(output)
     return output
 
-def cart(img):
+def cart(img,C=0,B=20):
     imgColor = img
     pyrLevels = 3
     biPasses = 7
@@ -190,13 +190,14 @@ def cart(img):
         imgColor = cv2.bilateralFilter(imgColor,d=9,sigmaColor=9,sigmaSpace=7)
     for i in range(pyrLevels):
         imgColor = pyrU(imgColor)
-    imgColor = adjustBrightness(imgColor,20)
-    
+    imgColor = adjustBrightness(imgColor,B) # should be 20
+    imgColor = adjustContrast(imgColor,C)
+
     gray = cvtGray(img)
-    blur = cv2.medianBlur(gray,7)#medBlur(gray,7)
+    blur = cv2.medianBlur(gray,7)
+    #blur = medBlur(gray,7)
     #gauss = gaussianGen(7)
     #blur = cv2.filter2D(gray,3,gauss)
-    #myThres = cannySobel(gray,maxVal=40)
     myThres = adapMask(blur,'mean',n=7,C=2.08) # adap takes in rgb image, returns 0/1 mask vals
     myErode = erosion(myThres,(3,3),it=1) # erosion returns 0/1 mask vals
     combined = applyMask(imgColor,myErode.astype('uint8'))
@@ -276,8 +277,11 @@ def vignette(img,output):
         if(area > maxArea):
             biggestFace = (x,y,fW,fH)
             maxArea = area
-    x,y,fW,fH = biggestFace
-    cX,cY = x+fW//2,y+fH//2
+    if(biggestFace != None):
+        x,y,fW,fH = biggestFace
+        cX,cY = x+fW//2,y+fH//2
+    else:
+        cX,cY = w//2,h//2
     w,h = img.shape[1],img.shape[0]
     dots = np.ones(img.shape)
     for x in range(0,w,15):
@@ -331,25 +335,26 @@ def transform(img,mat):
         for y in range(img.shape[0]):
             vec = np.array([[x],[y],[1]])
             newCoord = np.matmul(mat,vec).astype('int8')[:,0] #newCOord = [x1,y1]
-            #print(x,y,'vs',newCoord)
             if(0<=y<img.shape[1] and 0<=x<img.shape[0]):
                 result[x,y] = img[newCoord[0],newCoord[1]]
     return result
 
 def halfDotter(cmyk):
-    radii = ((255-np.squeeze(cmyk))//70+1).astype('uint8') # 1 for saturation, 2 for value. Which one?
+    radii = ((255-np.squeeze(cmyk))//60+1).astype('uint8') # 1 for saturation, 2 for value. Which one?
     w,h = cmyk.shape[1],cmyk.shape[0]
     dots = np.ones(cmyk.shape)
-    for x in range(0,w,5):
-        for y in range(0,h,5):
+    for x in range(0,w,6):
+        for y in range(0,h,6):
             cv2.circle(dots,(x,y),radii[y,x],(0,0,0),-1)
     dotInv = 255-dots
     return dots
 
-def halftone(img):
+def halftone(origImg):
+    
+    inW,inH,kW,kH,padW,padH,img = helper(origImg,np.ones((2*origImg.shape[1]//5,2*origImg.shape[0]//5)))
+    img = img.astype('uint8')
+    w,h = img.shape[1],img.shape[0]
     b,g,r = np.split(img,3,axis=2)
-
-    #inW,inH,kW,kH,padW,padH, = helper(img,np.array((w//3,h//3)))
 
     black = np.min([255-r,255-g,255-b])
     #black = np.minimum([255-r],np.minimum([255-g],[255-b]))[0]
@@ -358,6 +363,7 @@ def halftone(img):
     y = ((255-b-black)/(255-black))*255
     #k = np.dstack([black,black,black])
     faceCascade = cv2.CascadeClassifier("haarcascades/haarcascade_frontalface_default.xml")
+    cv2.imwrite('result.jpg',img)
     faces = faceCascade.detectMultiScale(img)
     biggestFace,maxArea = None,0
     for (xP,yP,fW,fH) in faces:
@@ -365,33 +371,32 @@ def halftone(img):
         if(area > maxArea):
             biggestFace = (xP,yP,fW,fH)
             maxArea = area
-    w,h = img.shape[1],img.shape[0]
     if(biggestFace != None):
         xPos,yPos,fW,fH = biggestFace
         cX,cY = xPos+fW//2,yPos+fH//2
     else:
         cX,cY = w//2,h//2
-    mMat = cv2.getRotationMatrix2D((cX,cY),14,1)
-    yMat = cv2.getRotationMatrix2D((cX,cY),31,1)
-    kMat = cv2.getRotationMatrix2D((cX,cY),44,1)
+    mMat = cv2.getRotationMatrix2D((cX,cY),15,1)
+    yMat = cv2.getRotationMatrix2D((cX,cY),30,1)
+    #kMat = cv2.getRotationMatrix2D((cX,cY),44,1)
     mTilt = cv2.warpAffine(m,mMat,(w,h))
     yTilt = cv2.warpAffine(y,yMat,(w,h))
     #kTilt = cv2.warpAffine(k,kMat,(w,h))
 
-    cDotMask = (1-halfDotter(c))*np.full(img.shape,[255,255,0])
     mDots = 1-halfDotter(mTilt)
     yDots = 1-halfDotter(yTilt)
     #kDots = 1-halfDotter(kTilt)
     
     mMat = cv2.getRotationMatrix2D((cX,cY),-15,1)
     yMat = cv2.getRotationMatrix2D((cX,cY),-30,1)
-    kMat = cv2.getRotationMatrix2D((cX,cY),-45,1)
-    mTilt = cv2.warpAffine(mDots,mMat,(w,h))
-    yTilt = cv2.warpAffine(yDots,yMat,(w,h))
+    #kMat = cv2.getRotationMatrix2D((cX,cY),-45,1)
+    mTilt = cv2.warpAffine(mDots,mMat,(w,h))[padH:padH+inH,padW:padW+inW]
+    yTilt = cv2.warpAffine(yDots,yMat,(w,h))[padH:padH+inH,padW:padW+inW]
     #kTilt = cv2.warpAffine(kDots,kMat,(w,h))
     
-    mDotMask = np.dstack([mTilt,mTilt,mTilt])*np.full(img.shape,[255,0,255])
-    yDotMask = np.dstack([yTilt,yTilt,yTilt])*np.full(img.shape,[0,255,255])
+    cDotMask = ((1-halfDotter(c))*np.full(img.shape,[255,255,0]))[padH:padH+inH,padW:padW+inW]
+    mDotMask = np.dstack([mTilt,mTilt,mTilt])*np.full(origImg.shape,[255,0,255])
+    yDotMask = np.dstack([yTilt,yTilt,yTilt])*np.full(origImg.shape,[0,255,255])
     #kDotMask = np.dstack[[kTilt,kTilt,kTilt]]*np.full(img.shape,[255,255,255])
 
     bMask = cDotMask*mDotMask
@@ -414,22 +419,20 @@ def halftone(img):
     justY = yDotMask*notG*notR
     justM = mDotMask*notR*notB
 
-    blackPos = np.prod(mDotMask+cDotMask+yDotMask+bMask+rMask+gMask,axis=2) # 0 at non-black, big nums at black
-    notAll = np.where(blackPos == 0,blackPos,-1)+1
-    notAll = np.dstack([notAll,notAll,notAll])
-    #print(np.amax(bMask+gMask+rMask))
+    #blackPos = np.prod(mDotMask+cDotMask+yDotMask+bMask+rMask+gMask,axis=2) # 0 at non-black, big nums at black
+    #notAll = np.where(blackPos == 0,blackPos,-1)+1
+    #notAll = np.dstack([notAll,notAll,notAll])
     
-    justB = np.dstack([bPos,bPos,bPos])*np.full(img.shape,[255,0,0])
-    justG = np.dstack([gPos,gPos,gPos])*np.full(img.shape,[0,255,0])
-    justR = np.dstack([rPos,rPos,rPos])*np.full(img.shape,[0,0,255])
-    justBlack = np.dstack([blackPos,blackPos,blackPos])*np.full(img.shape,[0,0,0])
+    justB = np.dstack([bPos,bPos,bPos])*np.full(origImg.shape,[255,0,0])
+    justG = np.dstack([gPos,gPos,gPos])*np.full(origImg.shape,[0,255,0])
+    justR = np.dstack([rPos,rPos,rPos])*np.full(origImg.shape,[0,0,255])
+    #justBlack = np.dstack([blackPos,blackPos,blackPos])*np.full(origImg.shape,[0,0,0])
     
     total = justC+justY+justM+justB+justG+justR # 255*2 = 510 (255,0,255)+(255,255,0) --> (255)
-    existPos = np.sum(total,axis=2) # 0 at not-exist, big nums at black
-    notExist = np.where(existPos == 0,existPos,-1)+1
-    notExist = np.dstack([notExist,notExist,notExist])
-    final = np.full(img.shape,[255,255,255])*notExist + total
-    
+    #existPos = np.sum(total,axis=2) # 0 at not-exist, big nums at black
+    #notExist = np.where(existPos == 0,existPos,-1)+1
+    #notExist = np.dstack([notExist,notExist,notExist])
+    #final = np.full(origImg.shape,[255,255,255])*notExist + total
     return total
 #### TESTING PURPOSES#####
 def dumb():
@@ -451,18 +454,33 @@ def dumb():
             cv2.destroyAllWindows()
             return
 
+def insertText(img,text,pos,color,size): # size is like 1.75, etc. 
+    blackText = np.ones(img.shape)
+    cv2.putText(blackText, f"{text}",pos,cv2.FONT_HERSHEY_DUPLEX,size,(0,0,0),thickness=4) # draw thicker black text
+    blackText = img*blackText
+    whiteText = np.zeros(img.shape)
+    cv2.putText(whiteText, f"{text}",pos,cv2.FONT_HERSHEY_DUPLEX,size,color,thickness=2) # draw thinner white text
+    return blackText + whiteText
+    
+def outline(img,width):
+    bg = np.zeros(img.shape)
+    bg[width:img.shape[0]-width,width:img.shape[1]-width] = 1
+    return img*bg
+    
 def justIm():
+    
+    
+    
     img = cv2.imread('surprise.jpg')
-    w,h = img.shape[1],img.shape[0]
+    #w,h = img.shape[1],img.shape[0]
     #img = img[h//3:2*h//3, w//3:2*w//3]
     #mat = getMatrix(h//2,w//2,img,90)
-    img = cart(img)
-    print(img[500:510,500:510])
-    #print(img.shape)
-    img = cv2.resize(img,(img.shape[1]//3,img.shape[0]//3))
     #cv2.imwrite('orig.jpg',img)
+    #img = insertText(img,'dummy thick',(50,50),(255,255,255))
+    #img = outline(img,30)
+    img = np.ones(img.shape)*[238,234,155]
     cv2.imwrite("result.jpg",img)
     print("completed")
 
-#justIm()
+justIm()
 #dumb()
