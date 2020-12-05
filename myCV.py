@@ -4,7 +4,7 @@ import numpy as np
 from tkinter import *
 from cmu_112_graphics import *
 from PIL import Image
-from cvhelpers import *
+from cvInterface import *
 
 def cannySobel(gray,n=5,minVal=40,maxVal=75):
     gauss = gaussianGen(n)

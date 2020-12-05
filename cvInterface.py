@@ -4,7 +4,7 @@ import numpy as np
 from tkinter import *
 from cmu_112_graphics import *
 from PIL import Image
-from fakecv import *
+from myCV import *
 
 def pilToCV(img):
     rgb = img.convert('RGB')
@@ -18,6 +18,11 @@ def cvToPIL(img):
     return img
 def mirrorImage(img):
     return img[:,::-1,:]
+
+def isDark(img):
+    hsv = cvtHSV(img)
+    meanValue = np.mean(hsv[:,:,2])
+    return meanValue < 30
 
 def insertText(img,text,pos,color,size): # size is like 1.75, etc. 
     blackText = np.ones(img.shape)
@@ -231,9 +236,19 @@ def outline(img,width):
     return img*bg
 
 def insertTitle(img,title):
-    img[40:100,40:500,:] = 200
-    img[42:98,42:498,:] = 0
-    img = insertText(img,title,(42,95),(255,255,255),1.75)
+    x0,y0= 40,40
+    x,y = 45,45
+    for i in range(30):
+        cv2.circle(img,(x,y),(30-i)//2,(0,0,0),-1)
+        cv2.circle(img,(x,y+15),(30-i)//2,(0,0,0),-1)
+        cv2.circle(img,(x,y+30),(30-i)//2,(0,0,0),-1)
+        cv2.circle(img,(x,y+45),(30-i)//2,(0,0,0),-1)
+        cv2.circle(img,(x,y+60),(30-i)//2,(0,0,0),-1)
+        x+=15
+    
+    #img[40:100,40:500,:] = 200
+    #img[42:98,42:498,:] = 0
+    img = insertText(img,title,(45,92),(255,255,255),1.75)
     return img
 
 #### TESTING PURPOSES#####

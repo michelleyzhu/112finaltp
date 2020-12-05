@@ -5,13 +5,13 @@ from tkinter import *
 from cmu_112_graphics import *
 import tkinter.font as tkFont
 from PIL import Image
-from fakecv import *
-from cvhelpers import *
+from myCV import *
+from cvInterface import *
+
 
 bubbleRatio = 3.5
 headerMarg = 20
 pBarLeft, gBarTop, sBarTop, oMarg = 870, 480, 200, 30
-# #fe4a49 • #2ab7ca • #fed766 • #e6e6ea • #f4f4f8
 class Region():
     def __init__(self,name,x,y,w,h,scale,size,drawables=None):
         self.name = name
@@ -63,14 +63,23 @@ class StudioRegion(Region):
         default = Image.open("savedIm.jpg")
         w, h = default.size[0]//4, default.size[1]//4
         default = default.resize((w,h))
-        defaultClip = Clip(default,default,0,0,w,h,name="cabbage")
+        self.defaultClip = Clip(default,default,0,0,w,h,name="cabbage")
             
         self.shownDrawables = [True]*len(drawables) + [False]*(size - len(drawables))
         self.finalI = len(drawables)-1 # should initialize to -1, empty drawables
         for i in range(len(self.drawables),self.size):
-            self.drawables.append(defaultClip.copy())
+            self.drawables.append(self.defaultClip.copy())
         self.relocateAll()
     
+    def clearAll(self):
+        self.drawables = []
+        
+        self.shownDrawables = [False]*self.size
+        self.finalI = self.size-1 # should initialize to -1, empty drawables
+        for i in range(self.size):
+            self.drawables.append(self.defaultClip.copy())
+        self.relocateAll()
+
     # either add to end, or replace the last one
     def addDrawable(self,drawable,savedRegion):
         drawableCopy = drawable.copy()
@@ -152,7 +161,7 @@ class StudioRegion(Region):
         cv = pilToCV(final)
         cv = insertTitle(cv,title)
         final = cvToPIL(cv)
-        final.save('finalProduct.png','PNG')
+        final.save('myComicStrip.png','PNG')
         
     def draw(self,canvas,littleText=True):
         for i in range(self.size):
@@ -236,7 +245,7 @@ class EditorRegion(Region):
                 return
         self.bubbleTexts.append((text,x,y,graphic,size))
         self.textUpdated = (text,x,y,graphic,size)
-
+        
 
     def updateGraphics(self,filterChanged=False):
         # disaster? copy
@@ -274,7 +283,7 @@ class EditorRegion(Region):
             messages = mess.split('`')
             y = (cY - 30*size*(len(messages))/2)/self.scale# messages = # of lines
             for m in messages:
-                x = (cX - 4*size*len(m)/2-85)/self.scale-self.oMarg
+                x = (cX - 4*size*len(m)/2-75)/self.scale-self.oMarg
                 tempImg = insertText(tempImg,f'{m}',(int(x),int(y)),(255,255,255),size)
                 y += 25*size # what will the difference be? Check
         tempImg = cvToPIL(tempImg)
@@ -298,9 +307,8 @@ class EditorRegion(Region):
         if(self.textUpdated != None):
             mess,cX,cY,graphic,size = self.textUpdated
             messages = mess.replace("`", "\n")
-            x,y = 930,615#pBarLeft + oMarg, gBarTop + oMarg
-            canvas.create_text(x,y+20,fill='gray',text=messages,font=self.small,anchor='nw')
-            y += 16
+            x,y = 930,650#pBarLeft + oMarg, gBarTop + oMarg
+            canvas.create_text(x,y,fill='gray',text=messages,font=self.small,anchor='nw')
 
         self.finalProduct.draw(canvas,False) # false b/c not drawing little text
         
