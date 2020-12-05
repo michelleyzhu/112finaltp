@@ -81,6 +81,8 @@ class StudioRegion(Region):
                 self.drawables[i] = drawableCopy
                 self.shownDrawables[i] = True
                 self.relocateAll()
+                self.drawables[i].editor.updateGraphics()
+                self.drawables[i].package()
                 return
         
         # if not, then add to the end
@@ -91,6 +93,8 @@ class StudioRegion(Region):
             savedRegion.addDrawable(self.drawables[self.finalI],savedRegion)
         self.drawables[self.finalI] = drawableCopy
         self.relocateAll()
+        self.drawables[self.finalI].editor.updateGraphics()
+        self.drawables[self.finalI].package()
     
     def removeDrawable(self,drawable):
         i = self.drawables.index(drawable)
@@ -129,6 +133,8 @@ class StudioRegion(Region):
                 self.shownDrawables[i] = True
                 self.finalI = max(i, self.finalI)
                 self.relocateAll()
+                self.drawables[i].editor.updateGraphics()
+                self.drawables[i].package()
                 return
         # or if it can't insert anywhere earlier, just insert at end
         self.addDrawable(drawable,savedRegion) #(calls relocateall)
@@ -258,8 +264,8 @@ class EditorRegion(Region):
                 ratio = 1.5
             scaledGraphic = graphic.img.resize((int(graphic.img.size[0]*ratio),int(graphic.img.size[1]*ratio)))
             mask = pilToCV(scaledGraphic)
-            print(f'graphic,{graphic.x,graphic.y}')
-            print(int((graphic.x-self.x0)/self.scale*1 - self.oMarg),mask.shape,int((graphic.y-self.y0)/self.scale - self.headerMarg))
+            #print(f'graphic,{graphic.x,graphic.y}')
+            #print(int((graphic.x-self.x0)/self.scale*1 - self.oMarg),mask.shape,int((graphic.y-self.y0)/self.scale - self.headerMarg))
             tempImg, success = overlayMask(tempImg,mask,int((graphic.x-self.x0)/self.scale*1 - self.oMarg),int((graphic.y-self.y0)/self.scale - self.headerMarg))
             if(not success):
                 self.drawables.remove(graphic)
@@ -276,6 +282,7 @@ class EditorRegion(Region):
         tempClip.img = tempImg # removed copy, disaster?
         tempClip.scaleImg(self.scale)
         self.finalProduct = tempClip.copy() # removed copy, disaster?
+        self.finalProduct.img.save('finalProduct.png','PNG')
         return success
 
     def updateTextSize(self,size):
@@ -348,13 +355,13 @@ class Clip():
         if(self.editor == []):
             self.editor = EditorRegion(f"editor{getRandStr()}",self,0,headerMarg,w,h)
         
-    def package(self,drawable):
+    def package(self):
         # removed a copy..l disaster?
         self.img = self.editor.finalProduct.img
         self.scaleImg(self.scale)
         for message in self.editor.bubbleTexts:
             graphic = message[3]
-            x,y = (self.scale*message[1])//0.6 + drawable.x, (self.scale*(message[2]-100))//0.6 + drawable.y
+            x,y = (self.scale*message[1])//0.6 + self.x, (self.scale*(message[2]-100))//0.6 + self.y
             self.smallBubbleTexts.append((message[0],x,y,message[3]))
         
     def __repr__(self): return self.name
@@ -374,6 +381,8 @@ class Clip():
         self.img = self.img.resize((self.w,self.h))
     
     def draw(self,canvas,littleText=True):
+        #if(self.typ == 'img'):
+        #    self.img = self.editor.finalProduct.img
         iMarg = 10
         canvas.create_image(self.w//2+self.x, self.h//2+self.y,image=ImageTk.PhotoImage(self.img))
         

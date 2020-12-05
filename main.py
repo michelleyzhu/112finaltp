@@ -161,9 +161,8 @@ class Studio(Mode):
         return False
 
     def mouseMoved(self,event):
-        if(self.editing):
-            for butt in self.buttons:
-                if(butt.checkHover(event.x,event.y)): return
+        for butt in self.buttons:
+            if(butt.checkHover(event.x,event.y)): return
         for butt in self.controls:
             if(butt.checkHover(event.x,event.y)): return
 
@@ -186,10 +185,17 @@ class Studio(Mode):
                 self.currGraphicButton.swapHover()
                 self.currGraphicButton = butt
         
-        if(self.editing):
-            for butt in self.buttons:
-                if(butt.isClicked(event.x,event.y)):
+        for butt in self.buttons:
+            if(butt.isClicked(event.x,event.y)):
+                if(self.editing):
                     self.currEditorRegion.applyFilter(butt.label)
+                    return
+                else:
+                    print('applying to all')
+                    for clip in self.studioRegion.drawables:
+                        print(f'applying to {clip.name}')
+                        clip.editor.applyFilter(butt.label)
+                        clip.package()
                     return
         for region in self.regions:
             if(not region.active): continue # if inactive, don't respond to dragging
@@ -254,7 +260,8 @@ class Studio(Mode):
                 i = 0
                 for drawable in region.drawables:
                     if(type(region) != EditorRegion and drawable.editor == self.currEditorRegion and (type(region) == StudioRegion and region.shownDrawables[i])):
-                        drawable.package(drawable)
+                        #drawable.package(drawable)
+                        drawable.package()
                     i+=1
                 if(type(region) != EditorRegion):
                     region.active = True
@@ -405,7 +412,7 @@ class Studio(Mode):
             for x,y,w,h in faces:
                 if(largestFace == None or w*h > area):
                     largestFace, area = (x,y,w,h), w*h
-            if(largestFace != None and area > 40000):
+            if(largestFace != None and area > 10000):
                 fX,fY,fW,fH = largestFace
                 cv2.rectangle(cvImg,(fX,fY),(fX+fW,fY+fH),(0,255,0),10) # face is thicker
                 mouths = mouthCascade.detectMultiScale(cvImg[fY+3*fH//4:fY+fH,fX:fX+fW])
@@ -439,22 +446,26 @@ class Studio(Mode):
         random.shuffle(bubbs)
         for bubble in bubbs: # bubble is a clip object graphic
             if(bubble.direct == 'left'):
-                origW,origH = bubble.w, bubble.h
-                w,h = bubbleRatio*origW/clip.scale, bubbleRatio*origH/clip.scale #origW,origH #
-                bubble.x, bubble.y = int(leftX-w), int(pointY-h)
+                w,h = bubble.img.size[0]*bubbleRatio, bubble.img.size[1]*bubbleRatio
+                #w,h = origW*bubbleRatio, origH*bubbleRatio #origW,origH # number of pixels in w,h on final
+                x0,y0 = int(leftX-w),int(pointY-h)
+                #print(f'w,h:{w,h}; leftX,pointY: {leftX,pointY}: x0,y0:{x0,y0}')
+                
+                bubble.x, bubble.y = x0*clip.editor.scale-50, y0*clip.editor.scale-50
                 #print(f'w,h: {origW,origH}, and scaled: {w,h}')
-                print(f'bubble x/y on the right: {bubble.x,bubble.y}')
+                #print(f'bubble x/y on the left: {bubble.x,bubble.y}')
                 
                 clip.editor.addDrawable(bubble,clip.editor)
                 
                 scaledGraphic = bubble.img.resize((int(bubble.img.size[0]*bubbleRatio),int(bubble.img.size[1]*bubbleRatio)))
                 mask = pilToCV(scaledGraphic)
-                x1 = int((bubble.x-clip.editor.x0)/clip.editor.scale*1 - clip.editor.oMarg)
-                y1 = int((bubble.y-clip.editor.y0)/clip.editor.scale - clip.editor.headerMarg)
+                #x1 = int((bubble.x-clip.editor.x0)/clip.editor.scale*1 - clip.editor.oMarg)
+                #y1 = int((bubble.y-clip.editor.y0)/clip.editor.scale - clip.editor.headerMarg)
                 
-                print(mask.shape)
-                print(f'top left: {x1},{y1}, bot right: {x1+mask.shape[1],y1+mask.shape[0]}, limit: {clip.origImg.shape[1],clip.origImg.shape[0]}')
-                if(0 <= x1 and x1+mask.shape[1] <= clip.origImg.shape[1] and 0 <= y1 and y1+mask.shape[0] <= clip.origImg.shape[0]):
+                #print(f'top left: {x0},{y0}, bot right: {x0+w,y0+h}, limit: {clip.origImg.shape[1],clip.origImg.shape[0]}')
+                #if(0 <= x1 and x1+mask.shape[1] <= clip.origImg.shape[1] and 0 <= y1 and y1+mask.shape[0] <= clip.origImg.shape[0]):
+                x0,y0 = int((bubble.x-clip.editor.x0)/clip.editor.scale*1 - clip.editor.oMarg),int((bubble.y-clip.editor.y0)/clip.editor.scale - clip.editor.headerMarg)
+                if(0 <= x0 and x0+w <= clip.origImg.shape[1] and 0 <= y0 and y0+h <= clip.origImg.shape[0]):
                     clip.editor.updateGraphics()
                     print('shouldve added to left succesfully!')
                     return True
@@ -463,20 +474,20 @@ class Studio(Mode):
                         clip.editor.removeDrawable(bubble)
                     print(f'failed to add {bubble.name}to the left')
             elif(bubble.direct == 'right'):
-                origW,origH = bubble.w, bubble.h
-                w,h = bubbleRatio*origW/clip.scale, bubbleRatio*origH/clip.scale #origW,origH #
-                bubble.x, bubble.y = int(rightX), int(pointY-h)
-                print(f'bubble x/y on the right: {bubble.x,bubble.y}')
+                w,h = bubble.img.size[0]*bubbleRatio, bubble.img.size[1]*bubbleRatio
+                #w,h = bubbleRatio*origW/clip.scale, bubbleRatio*origH/clip.scale #origW,origH #
+                #print(f'w,h:{w,h}; leftX,pointY: {leftX,pointY}: x0,y0:{x0,y0}')
+                x0,y0 = int(rightX),int(pointY-h)
+                
+                bubble.x, bubble.y = x0*clip.editor.scale+50, y0*clip.editor.scale-50
+                #print(f'bubble x/y on the right: {bubble.x,bubble.y}')
                 
                 clip.editor.addDrawable(bubble,clip.editor)
                 
                 scaledGraphic = bubble.img.resize((int(bubble.img.size[0]*bubbleRatio),int(bubble.img.size[1]*bubbleRatio)))
                 mask = pilToCV(scaledGraphic)
-                x1 = int((bubble.x-clip.editor.x0)/clip.editor.scale*1 - clip.editor.oMarg)
-                y1 = int((bubble.y-clip.editor.y0)/clip.editor.scale - clip.editor.headerMarg)
-                
-                print(mask.shape)
-                if(5 <= x1 and x1+mask.shape[1] <= clip.origImg.shape[1]-5 and 5 <= y1 and y1+mask.shape[0] <= clip.origImg.shape[0]-5):
+                x0,y0 = int((bubble.x-clip.editor.x0)/clip.editor.scale*1 - clip.editor.oMarg),int((bubble.y-clip.editor.y0)/clip.editor.scale - clip.editor.headerMarg)
+                if(0 <= x0 and x0+w <= clip.origImg.shape[1] and 0 <= y0 and y0+h <= clip.origImg.shape[0]):
                     clip.editor.updateGraphics()
                     print('shouldve added to right succesfully!')
                     return True
