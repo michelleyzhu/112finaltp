@@ -148,7 +148,6 @@ class StudioRegion(Region):
         final = cvToPIL(cv)
         final.save('finalProduct.png','PNG')
         
-
     def draw(self,canvas,littleText=True):
         for i in range(self.size):
             if(self.shownDrawables[i]):
@@ -237,7 +236,7 @@ class EditorRegion(Region):
         # disaster? copy
         tempClip = self.drawables[0]
         # applying filter
-        tempImg = tempClip.origImg
+        tempImg = tempClip.origImg#.astype('uint8')
         if(self.filter == 'dot'):
             tempImg = halfDotFilter(tempImg,cart(tempImg))
         elif(self.filter == 'pastel'):
@@ -250,7 +249,7 @@ class EditorRegion(Region):
             tempImg = vignette(tempImg,cart(tempImg))
         elif(self.filter == 'benday'):
             tempImg = halftone(tempImg)
-        
+        success = True
         for graphic in self.drawables[1:]:
             ratio = 1
             if(graphic.typ == 'bubble'):
@@ -259,20 +258,25 @@ class EditorRegion(Region):
                 ratio = 1.5
             scaledGraphic = graphic.img.resize((int(graphic.img.size[0]*ratio),int(graphic.img.size[1]*ratio)))
             mask = pilToCV(scaledGraphic)
-            tempImg = overlayMask(tempImg,mask,int((graphic.x-self.x0)/self.scale*1 - self.oMarg),int((graphic.y-self.y0)/self.scale - self.headerMarg))
+            print(f'graphic,{graphic.x,graphic.y}')
+            print(int((graphic.x-self.x0)/self.scale*1 - self.oMarg),mask.shape,int((graphic.y-self.y0)/self.scale - self.headerMarg))
+            tempImg, success = overlayMask(tempImg,mask,int((graphic.x-self.x0)/self.scale*1 - self.oMarg),int((graphic.y-self.y0)/self.scale - self.headerMarg))
+            if(not success):
+                self.drawables.remove(graphic)
         for message in self.bubbleTexts:
             mess,cX,cY,graphic,size = message
             messages = mess.split('`')
-            y = (cY - 26*size*(len(messages))/2+30)/self.scale# messages = # of lines
+            y = (cY - 30*size*(len(messages))/2)/self.scale# messages = # of lines
             for m in messages:
-                x = (cX - 3*size*len(m)/2-60)/self.scale
+                x = (cX - 4*size*len(m)/2-85)/self.scale-self.oMarg
                 tempImg = insertText(tempImg,f'{m}',(int(x),int(y)),(255,255,255),size)
-                y += 24*size # what will the difference be? Check
+                y += 25*size # what will the difference be? Check
         tempImg = cvToPIL(tempImg)
 
         tempClip.img = tempImg # removed copy, disaster?
         tempClip.scaleImg(self.scale)
         self.finalProduct = tempClip.copy() # removed copy, disaster?
+        return success
 
     def updateTextSize(self,size):
         self.textSize = size
@@ -324,7 +328,7 @@ def getRandStr():
     return ''.join(random.choice(letters) for i in range(8))
     
 class Clip():
-    def __init__(self,img,unfilt,x,y,w,h,scale=1,name=getRandStr(),typ='img',editor=None,smallBubbleTexts=[]):
+    def __init__(self,img,unfilt,x,y,w,h,scale=1,name=getRandStr(),typ='img',editor=None,smallBubbleTexts=[],direct=''):
         self.name = name
         self.origImg = unfilt
         self.img = img
@@ -334,6 +338,7 @@ class Clip():
         self.getScaledWs()
         self.getCenter()
         self.editor = editor
+        self.direct = direct
 
         # draw rectangle:
         if(typ=='img' and img != None):

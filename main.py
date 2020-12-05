@@ -10,6 +10,7 @@ from widgets import *
 from modes import *
 
 ##### CITATION: see importGraphics() for citation of images #####
+bubbleRatio = 3.5
 
 # #fe4a49 • #2ab7ca • #fed766 • #e6e6ea • #f4f4f8
 class Studio(Mode):
@@ -71,11 +72,10 @@ class Studio(Mode):
         self.bubblesButton = ImageButton('speech',self.oMarg+470+3*img.size[0]//2,self.oMarg+self.gBarTop+img.size[1]//2,Image.open(f'graphics/labels/bubbles.png'),Image.open(f'graphics/labels/bubblesHover.png'),swapped=False)
         
         self.currGraphicButton = self.soundsButton
-
         self.graphicButtons = [self.soundsButton,self.bwButton,self.bubblesButton]
 
         self.studioRegion = StudioRegion("studio",0,self.headerMarg,self.pBarLeft, self.gBarTop-self.headerMarg,1/4,self.maxClips)
-        self.savedRegion = SavedRegion("saved",self.pBarLeft,self.sBarTop+self.headerMarg,self.width-self.pBarLeft, self.gBarTop-self.sBarTop,0.1,10)
+        self.savedRegion = SavedRegion("saved",self.pBarLeft+15,self.sBarTop+self.headerMarg+30,self.width-self.pBarLeft, self.gBarTop-self.sBarTop,0.08,10)
         
         x,y,w,h = 0,self.gBarTop+20,self.pBarLeft-200,self.height-self.gBarTop-20
         self.bubbleRegion = GraphicsRegion('speech',x,y,w,h,0.3,20,self.bubbles)
@@ -102,6 +102,7 @@ class Studio(Mode):
             self.bwRegion.active = True
 
 
+    # more bubles: https://www.vectorstock.com/royalty-free-vector/empty-monochrome-speech-comic-text-bubbles-vector-13248595
     # bubbles: 211558518, https://depositphotos.com/211558518/stock-illustration-big-set-empty-speech-bubble.html
     # black/white(graphics/bw): Max Luczynski, https://www.behance.net/gallery/47977047/One-Hundred-hand-drawn-cartoon-and-comic-symbols
     # explosions(graphics/colors): Tartila 20799751, https://www.vectorstock.com/royalty-free-vector/exclamation-texting-comic-signs-on-speech-bubbles-vector-20799751
@@ -109,7 +110,16 @@ class Studio(Mode):
         self.bubbles, self.bw, self.sounds = [],[],[]
         for f in os.listdir('graphics/comics/bubbles'): # BUBBLES
             img = self.loadImage(f"graphics/comics/bubbles/{f}")
-            graphicAsClip = Clip(img,img,0,0,img.size[0],img.size[1],typ='bubble')
+            if(f[0] == 'r'):
+                cv = pilToCV(img)
+                cv = mirrorImage(cv)
+                img = cvToPIL(cv)
+                direct = 'right'
+            elif(f[0] == 'l'):
+                direct = 'left'
+            else:
+                direct = 'norm'
+            graphicAsClip = Clip(img,img,0,0,img.size[0],img.size[1],typ='bubble',direct=direct)
             self.bubbles.append(graphicAsClip)
         for f in os.listdir('graphics/comics/colors'): # COLORS
             img = self.loadImage(f"graphics/comics/colors/{f}")
@@ -122,7 +132,7 @@ class Studio(Mode):
         img = Image.open(f'graphics/labels/editor.png')
         self.editorLabel = ('editor',self.oMarg+img.size[0]//2,self.oMarg+img.size[1]//2,img)
         img = Image.open(f'graphics/labels/saved.png')
-        self.savedLabel = ('saved',self.oMarg+self.pBarLeft+img.size[0]//2,self.oMarg+self.sBarTop+img.size[1]//2,img)
+        self.savedLabel = ('saved',self.oMarg+self.pBarLeft+img.size[0]//2,self.sBarTop+self.headerMarg+60,img)
         img = Image.open(f'graphics/labels/studio.png')
         self.studioLabel = ('studio',self.oMarg+img.size[0]//2,self.oMarg+img.size[1]//2,img)
         img = Image.open(f'graphics/labels/effects.png')
@@ -334,34 +344,174 @@ class Studio(Mode):
         cv2.imshow("recording",resized)
 
     def writeToVid(self):
-        self.vidOut.write(self.imgCartoon)
+        self.vidOut.write(self.frame)
 
     def processVid(self):
         v = cv2.VideoCapture("vidOut.avi")
         self.faceVid = cv2.VideoWriter("faceVid.avi",cv2.VideoWriter_fourcc("M","J","P","G"),5,(self.w,self.h),True)
         faceCascade = cv2.CascadeClassifier("haarcascades/haarcascade_frontalface_default.xml")
+        self.totalFrames, self.faceFrames = 0,0
         while(True):
             frameExists, frame = v.read()
             if(not frameExists):
                 self.faceVid.release()
                 break
-
             faces = faceCascade.detectMultiScale(frame)
             largestFace, area = None,0
             for x,y,w,h in faces:
                 if(largestFace == None or w*h > area):
                     largestFace, area = (x,y,w,h), w*h
             if(largestFace != None and area > 80000):
-                x,y,w,h = largestFace
-                cv2.rectangle(frame,(x,y),(x+w,y+h),(0,255,0),5)
+                mx,my,mw,mh = largestFace
+                cv2.rectangle(frame,(x,y),(x+w,y+h),(0,0,255),5)
                 self.faceVid.write(frame)
-            '''
-            else:
-                failure = np.zeros((self.w,self.h),dtype=np.uint8)
-                cv2.putText(failure,"failure!",(self.w//2,self.h//2),cv2.FONT_HERSHEY_COMPLEX,-1,(255,0,0))
-                cv2.imwrite("recording",failure)
-                self.faceVid.write(failure)
-            '''
+                self.faceFrames += 1
+            self.totalFrames += 1
+        self.packageFrames()
+    
+    def packageFrames(self):
+        faceIndices = sorted(random.sample([i for i in range(self.faceFrames)],min(self.faceFrames,4)))
+        self.autoImages = []
+        self.AutoFrames = []
+        f = cv2.VideoCapture('faceVid.avi')
+        v = cv2.VideoCapture('vidOut.avi')
+        for i in range(self.faceFrames):
+            ret, frame = f.read()
+            if(i == faceIndices[0]):
+                print(f'reading frame {i+1}')
+                self.autoImages.append(frame)
+                imgClip = self.processFrame(frame)
+                self.AutoFrames.append(imgClip)
+                if(len(faceIndices) > 1):
+                    faceIndices = faceIndices[1:]
+                else:
+                    break
+        while(len(self.AutoFrames) < min(4,self.totalFrames)):
+            ret, frame = v.read()
+            if(not np.array_equal(frame, self.autoImages)):
+                imgClip = self.processFrame(frame,False)
+                self.AutoFrames.append(imgClip) # The appended should be clip(drawable) objects
+        for clip in self.AutoFrames:
+            self.studioRegion.addDrawable(clip,self.savedRegion)
+            self.regions.append(clip.editor)
+
+    def processFrame(self,cvImg,face=True):
+        faceCascade = cv2.CascadeClassifier("haarcascades/haarcascade_frontalface_default.xml")
+        mouthCascade = cv2.CascadeClassifier("haarcascades/haarcascade_smile.xml")
+        
+        if(face):
+            faces = faceCascade.detectMultiScale(cvImg)
+            largestFace, area = None,0
+            for x,y,w,h in faces:
+                if(largestFace == None or w*h > area):
+                    largestFace, area = (x,y,w,h), w*h
+            if(largestFace != None and area > 40000):
+                fX,fY,fW,fH = largestFace
+                cv2.rectangle(cvImg,(fX,fY),(fX+fW,fY+fH),(0,255,0),10) # face is thicker
+                mouths = mouthCascade.detectMultiScale(cvImg[fY+3*fH//4:fY+fH,fX:fX+fW])
+                largestMouth, area = None, 0
+                for mx,my,mw,mh in mouths:
+                    if(largestMouth == None or mw*mh > area):
+                        largestMouth, area = (mx,my,mw,mh), mw*mh
+                if(largestMouth != None):
+                    mX,mY,mW,mH = largestMouth
+                    cv2.rectangle(cvImg,(fX+mX,fY+3*fH//4+mY),(fX+mX+mW,fY+3*fH//4+mY+mH),(0,255,0),5)
+                    leftX, rightX, pointY = fX,fX+fW,fY+3*fH//4+mY-20
+                    
+                    currIm = cvToPIL(cvImg)
+                    w, h = currIm.size[0], currIm.size[1]
+                    newClip = Clip(currIm,cvImg,0,0,w,h,editor=[])
+        
+                    if(not self.placeSides(newClip,leftX,rightX,pointY)):
+                        print('failed to add to the sides')
+                        self.placePlain(newClip)
+                    newClip.editor.applyFilter('default')
+                    return newClip
+        currIm = cvToPIL(cvImg)
+        w, h = currIm.size[0], currIm.size[1]
+        newClip = Clip(currIm,cvImg,0,0,w,h,editor=[])
+        self.placePlain(newClip)
+        newClip.editor.applyFilter('default')
+        return newClip
+
+    def placeSides(self,clip,leftX,rightX,pointY):
+        bubbs = self.bubbles.copy()
+        random.shuffle(bubbs)
+        for bubble in bubbs: # bubble is a clip object graphic
+            if(bubble.direct == 'left'):
+                origW,origH = bubble.w, bubble.h
+                w,h = bubbleRatio*origW/clip.scale, bubbleRatio*origH/clip.scale #origW,origH #
+                bubble.x, bubble.y = int(leftX-w), int(pointY-h)
+                #print(f'w,h: {origW,origH}, and scaled: {w,h}')
+                print(f'bubble x/y on the right: {bubble.x,bubble.y}')
+                
+                clip.editor.addDrawable(bubble,clip.editor)
+                
+                scaledGraphic = bubble.img.resize((int(bubble.img.size[0]*bubbleRatio),int(bubble.img.size[1]*bubbleRatio)))
+                mask = pilToCV(scaledGraphic)
+                x1 = int((bubble.x-clip.editor.x0)/clip.editor.scale*1 - clip.editor.oMarg)
+                y1 = int((bubble.y-clip.editor.y0)/clip.editor.scale - clip.editor.headerMarg)
+                
+                print(mask.shape)
+                print(f'top left: {x1},{y1}, bot right: {x1+mask.shape[1],y1+mask.shape[0]}, limit: {clip.origImg.shape[1],clip.origImg.shape[0]}')
+                if(0 <= x1 and x1+mask.shape[1] <= clip.origImg.shape[1] and 0 <= y1 and y1+mask.shape[0] <= clip.origImg.shape[0]):
+                    clip.editor.updateGraphics()
+                    print('shouldve added to left succesfully!')
+                    return True
+                else:
+                    if(bubble in clip.editor.drawables[1:]):
+                        clip.editor.removeDrawable(bubble)
+                    print(f'failed to add {bubble.name}to the left')
+            elif(bubble.direct == 'right'):
+                origW,origH = bubble.w, bubble.h
+                w,h = bubbleRatio*origW/clip.scale, bubbleRatio*origH/clip.scale #origW,origH #
+                bubble.x, bubble.y = int(rightX), int(pointY-h)
+                print(f'bubble x/y on the right: {bubble.x,bubble.y}')
+                
+                clip.editor.addDrawable(bubble,clip.editor)
+                
+                scaledGraphic = bubble.img.resize((int(bubble.img.size[0]*bubbleRatio),int(bubble.img.size[1]*bubbleRatio)))
+                mask = pilToCV(scaledGraphic)
+                x1 = int((bubble.x-clip.editor.x0)/clip.editor.scale*1 - clip.editor.oMarg)
+                y1 = int((bubble.y-clip.editor.y0)/clip.editor.scale - clip.editor.headerMarg)
+                
+                print(mask.shape)
+                if(5 <= x1 and x1+mask.shape[1] <= clip.origImg.shape[1]-5 and 5 <= y1 and y1+mask.shape[0] <= clip.origImg.shape[0]-5):
+                    clip.editor.updateGraphics()
+                    print('shouldve added to right succesfully!')
+                    return True
+                else:
+                    if(bubble in clip.editor.drawables[1:]):
+                        clip.editor.removeDrawable(bubble)
+                    print(f'failed to add {bubble.name}to the right')
+        print('failed to add to both sides')
+        return False
+
+    def placePlain(self,clip):
+        bubbs = self.bubbles.copy()
+        random.shuffle(bubbs)
+        for bubble in bubbs: # bubble is a clip object graphic
+            if(bubble.direct == 'norm'):
+                #origW,origH = bubble.w, bubble.h
+                #w,h = origW/clip.scale, origH/clip.scale
+                
+                bubble.x, bubble.y = 50, 50
+                print('trying the norm:')
+                
+                clip.editor.addDrawable(bubble,clip.editor)
+                scaledGraphic = bubble.img.resize((int(bubble.img.size[0]*bubbleRatio),int(bubble.img.size[1]*bubbleRatio)))
+                mask = pilToCV(scaledGraphic)
+                x1 = int((bubble.x-clip.editor.x0)/clip.editor.scale*1 - clip.editor.oMarg)
+                y1 = int((bubble.y-clip.editor.y0)/clip.editor.scale - clip.editor.headerMarg)
+                
+                print(mask.shape)
+                if(5 <= x1 and x1+mask.shape[1] <= clip.origImg.shape[1]-5 and 5 <= y1 and y1+mask.shape[0] <= clip.origImg.shape[0]-5):
+                    clip.editor.updateGraphics()
+                    return True
+                else:
+                    if(bubble in clip.editor.drawables[1:]):
+                        clip.editor.removeDrawable(bubble)
+                    print(f'failed to add {bubble.name}to the normal')
 
     def record(self):
         key = cv2.waitKey(1)
@@ -407,8 +557,8 @@ class Studio(Mode):
                     region.draw(canvas)
             
     def drawControlPanel(self,canvas):
-        canvas.create_line(self.pBarLeft,0,self.pBarLeft,self.height,fill='black',width=10)
-        canvas.create_line(0,self.gBarTop,self.width,self.gBarTop,fill='black',width=10)
+        #canvas.create_line(self.pBarLeft,0,self.pBarLeft,self.height,fill='black',width=10)
+        #canvas.create_line(0,self.gBarTop,self.width,self.gBarTop,fill='black',width=10)
         for butt in self.buttons:
             butt.draw(canvas)
         for butt in self.controls:

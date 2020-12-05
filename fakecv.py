@@ -435,24 +435,6 @@ def halftone(origImg):
     #final = np.full(origImg.shape,[255,255,255])*notExist + total
     return total
 #### TESTING PURPOSES#####
-def dumb():
-    vid = cv2.VideoCapture(0)
-    cv2.namedWindow('recording')
-    ret, frame = vid.read()
-    windowFrac = 1/2
-    minW, minH = int(frame.shape[1]*windowFrac), int(frame.shape[0]*windowFrac)
-    w, h = frame.shape[1], frame.shape[0]
-    while True:
-        ret, frame = vid.read()
-        img = cart(frame)
-        resized = cv2.resize(img,(minW,minH))
-        cv2.imshow("recording",resized)
-        
-        key = cv2.waitKey(1)
-        if(key == ord('q')):
-            vid.release()
-            cv2.destroyAllWindows()
-            return
 
 def insertText(img,text,pos,color,size): # size is like 1.75, etc. 
     blackText = np.ones(img.shape)
@@ -474,19 +456,58 @@ def insertTitle(img,title):
     return img
 
 def justIm():
+    frame = cv2.imread('surprise.jpg')
     
-    
-    
-    img = cv2.imread('surprise.jpg')
+
     #w,h = img.shape[1],img.shape[0]
     #img = img[h//3:2*h//3, w//3:2*w//3]
     #mat = getMatrix(h//2,w//2,img,90)
     #cv2.imwrite('orig.jpg',img)
     #img = insertText(img,'dummy thick',(50,50),(255,255,255))
     #img = outline(img,30)
-    img = np.ones(img.shape)*[238,234,155]
-    cv2.imwrite("result.jpg",img)
+    #img = np.ones(img.shape)*[238,234,155]
+    cv2.imwrite("result.jpg",frame)
     print("completed")
+
+
+def dumb():
+    vid = cv2.VideoCapture(0)
+    cv2.namedWindow('recording')
+    ret, frame = vid.read()
+    windowFrac = 1/2
+    minW, minH = int(frame.shape[1]*windowFrac), int(frame.shape[0]*windowFrac)
+    w, h = frame.shape[1], frame.shape[0]
+    faceCascade = cv2.CascadeClassifier("haarcascades/haarcascade_frontalface_default.xml")
+    mouthCascade = cv2.CascadeClassifier("haarcascades/haarcascade_smile.xml")
+    #mouthCascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascades/Mouth.xml") 
+    while True:
+        ret, frame = vid.read()
+        #color = frame
+        #frame = cvtGray(frame)
+        #frame = cv2.resize(frame,(frame.shape[1]//3,frame.shape[0]//3))
+        faces = faceCascade.detectMultiScale(frame)
+        largestFace, area = None,0
+        for x,y,w,h in faces:
+            if(largestFace == None or w*h > area):
+                largestFace, area = (x,y,w,h), w*h
+        if(largestFace != None and area > 40000):
+            x,y,w,h = largestFace
+            cv2.rectangle(frame,(x,y),(x+w,y+h),(0,255,0),5)
+            mouths = mouthCascade.detectMultiScale(frame[y+3*h//4:y+h,x:x+w])
+            largestMouth, area = None, 0
+            for mx,my,mw,mh in mouths:
+                if(largestMouth == None or mw*mh > area):
+                    largestMouth, area = (mx,my,mw,mh), mw*mh
+            if(largestMouth != None):
+                mx,my,mw,mh = largestMouth
+                cv2.rectangle(frame,(x+mx,y+3*h//4+my),(x+mx+mw,y+3*h//4+my+mh),(0,255,0),5)
+        cv2.imshow("recording",frame)
+
+        key = cv2.waitKey(1)
+        if(key == ord('q')):
+            vid.release()
+            cv2.destroyAllWindows()
+            return
 
 #justIm()
 #dumb()

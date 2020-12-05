@@ -43,7 +43,7 @@ def pilToCV(img):
     rgb = img.convert('RGB')
     cvIm = np.array(img)
     bgr = cvIm[:,:,::-1]
-    return bgr
+    return bgr.astype('uint8')
 
 def cvToPIL(img):
     img = cv2.cvtColor(img.astype('uint8'),cv2.COLOR_BGR2RGB)
@@ -114,6 +114,9 @@ def pyrD(img):
 
     smaller = blur[::2,::2]
     return smaller
+
+def mirrorImage(img):
+    return img[:,::-1,:]
 
 def pyrU(img,size=None):
     if(size==None):
@@ -205,7 +208,7 @@ def erosion(inp,kernSize,it=1):
 def overlayMask(img,mask,x0,y0,scale=1):
     if(len(img.shape) == 2): # grayscale, then convert to rgb
         img = np.dstack([img,img,img])
-    if(x0+mask.shape[1] <= img.shape[1] and y0+mask.shape[0] <= img.shape[0]):
+    if(0 <= x0 and x0+mask.shape[1] <= img.shape[1] and 0 <= y0 and y0+mask.shape[0] <= img.shape[0]):
         centering = cvtGray(mask).astype('float32')-230 # converts to gray, removes most
         centering = np.dstack([centering,centering,centering]) # now we only want the negative values to be 1
         binary = ((np.sign(-centering)+1)/2).astype('uint8') # converts to 0 for not show, 1 for show
@@ -214,6 +217,7 @@ def overlayMask(img,mask,x0,y0,scale=1):
         
         img[y0:y0+mask.shape[0],x0:x0+mask.shape[1]] = upper+lower
     else:
+        return img, False
         print(f'failed: {x0+mask.shape[1]}>{img.shape[1]} or {y0+mask.shape[0]} > {img.shape[0]}')
-    return img
+    return img, True
 
