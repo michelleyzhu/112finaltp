@@ -8,19 +8,39 @@ from cvInterface import *
 from widgets import *
 from modes import *
 
+############################################################################
+# main.py:
+# This controls my main Studio mode app, and includes the primary functions
+# of my MVC control as well as video-processing methods for clip auto-
+# generation.
+############################################################################
+
+faceCascade = cv2.CascadeClassifier("haarcascades/haarcascade_frontalface_default.xml")
+mouthCascade = cv2.CascadeClassifier("haarcascades/haarcascade_smile.xml")
+    
 ##### CITATION: see importGraphics() for citation of images #####
 bank = {
     'dumb': "hmmm... I'm so confused",
     'dark': "why is it so dark in here??",
     'tilt': "I'm confused..."
 }
+narrator = ['gaze upon a`nerd in its`natural habitat','look, a loser']
 sequences = {
-    'doubt':['I may not be`great at art...','or anything`in general...','what was my`point again?','ah, code`is good'], # do ... all over
-    'dark':['Why is it so`dark in here??','ah, I know...',"it's the absence`of all intelligence.",'#hardcodedburn'], # if ? in, do ?s all over
+    'doubt':['I may not be`great at art...','or anything`in general...','what was my`point again?','ah, code`is good'],
+    'dark':['Why is it so`dark in here??','ah, I know...',"it's the absence`of all intelligence.",'#hardcodedburn'],
     'tilt':['I am so confused`by the general`state of affairs.','Why do I`say that?','#lol','No reason, I just`look cool with`my head tilted.'],
     'empty':["OMG look away","I'm camera shy","and I won't`let the FBI see`my face",'cover']
 }
-narrator = ['gaze upon a`nerd in its`natural habitat','look, a loser']
+emotes = {
+    'anger':['The comic sans`font sparks`anger in me.',"Well, I'm angry`it's not in`this app!","Michelle SHOULD'VE`put it in...","but she was`TIRED, I guess."],
+    'disgust':['The comic sans`font is SO`gross.',"I'm disgusted`that it's not`in this app!","Michelle is so`lame for not`pulling it off",'I guess she`was too "tired"'],
+    'fear':["The comic sans`font scares me.","Well, I'm scared`about why it's`not in this app!","shouldn't michelle`have put`it in??","what prevented`her from pulling`that off?"],
+    'happy':["The comic sans`font brings me`all of my joy.","Well, I'm okay`with not having`it in this app!","wouldn't it`have been cool`to have that?","it's fine that`she couldn't`do it."],
+    'sad':["The comic sans`font depresses`me.","Well, I'm sad`it's not in`this app!","It would've been`nice to have...","she was probably`too tired and`dumb. :(("],
+    'neutral':["The comic sans`font is cool.","Well, I wish`it was in`this app.","It would be`a nice feature,","oh well, she can't`do it all."],
+    'surprise':["The comic sans`font always`startles me.","I was shocked`to see it's not`in this app!","It would've been`SO cool to have,","and I can't`believe she didn't`pull that off!"],
+    'none':["This nerd likes`comic sans font.","they want it to be in the app.","comic sans`would've been`cool...","the nerd is sad."]
+}
 
 class Studio(Mode):
     def appStarted(self):
@@ -33,6 +53,9 @@ class Studio(Mode):
         self.currBubble = ["",0,0,None,1.75] # message, x, y
         self.draggedClip = None
         self.prevRegion = None
+        self.currEditorRegion = None
+        self.graphicsRegions = None
+        self.imgCartoon = None
         # flags
         self.recording = False
         self.editing = False
@@ -50,13 +73,14 @@ class Studio(Mode):
         self.pBarLeft, self.gBarTop, self.sBarTop = 870, 480, 200
         self.headerMarg = 40
         self.oMarg, self.iMarg = 40, 10
-        self.bubbleRatio = 3.5
+        self.bubbleRatio = 2.5
         # More initialization - categorized!
         self.importGraphics()
         self.initializeStudio()
         
     def initializeStudio(self):
         self.backgroundImage = Image.open(f'graphics/backgrounds/frame.png')
+        self.blueBorder = Image.open(f'graphics/labels/blueBorder.png')
 
         # Primary Control Buttons
         x,y = (self.pBarLeft+self.width)//2, self.headerMarg+self.iMarg 
@@ -65,7 +89,9 @@ class Studio(Mode):
         self.saveButt = ImageButton('save',x,y+150,Image.open(f'graphics/controls/save.png'),Image.open(f'graphics/controls/saveHover.png'))
         self.trashButt = ImageButton('trash',self.pBarLeft-75,self.gBarTop-130,Image.open(f'graphics/controls/close.png'),Image.open(f'graphics/controls/open.png'))
         self.backButt = ImageButton('back',self.pBarLeft-75,self.gBarTop-50,Image.open(f'graphics/controls/back.png'),Image.open(f'graphics/controls/backHover.png'))
-        self.controls = [self.recordButt,self.commandButt,self.saveButt,self.trashButt,self.backButt]
+        self.undoButt = ImageButton('undo',self.pBarLeft-75,self.gBarTop-200,Image.open(f'graphics/controls/undo.png'),Image.open(f'graphics/controls/undoHover.png'))
+        
+        self.controls = [self.recordButt,self.commandButt,self.saveButt,self.trashButt,self.backButt,self.undoButt]
         
         # Filter Buttons
         x,y = 770, self.gBarTop + self.headerMarg +15
@@ -81,23 +107,26 @@ class Studio(Mode):
         self.soundsButton = ImageButton('sounds',self.oMarg+170+img.size[0]//2,self.oMarg+self.gBarTop+img.size[1]//2,img,Image.open(f'graphics/labels/soundsHover.png'),swapped=True)
         self.bwButton = ImageButton('bw',self.oMarg+320+2*img.size[0]//2,self.oMarg+self.gBarTop+img.size[1]//2,Image.open(f'graphics/labels/graphics.png'),Image.open(f'graphics/labels/graphicsHover.png'),swapped=False)
         self.bubblesButton = ImageButton('speech',self.oMarg+470+3*img.size[0]//2,self.oMarg+self.gBarTop+img.size[1]//2,Image.open(f'graphics/labels/bubbles.png'),Image.open(f'graphics/labels/bubblesHover.png'),swapped=False)
+        #if bgs: +250,+330
+        #self.bgsButton = ImageButton('bgs',self.oMarg+460+3*img.size[0]//2,self.oMarg+self.gBarTop+img.size[1]//2-4,Image.open(f'graphics/labels/backgrounds.png'),Image.open(f'graphics/labels/backgroundsHover.png'),swapped=False)
         
         self.currGraphicButton = self.soundsButton
-        self.graphicButtons = [self.soundsButton,self.bwButton,self.bubblesButton]
+        self.graphicButtons = [self.soundsButton,self.bwButton,self.bubblesButton] #,self.bgsButton
 
         # Regions
         self.studioRegion = StudioRegion("studio",0,self.headerMarg,self.pBarLeft, self.gBarTop-self.headerMarg,1/4,4)
         self.savedRegion = SavedRegion("saved",self.pBarLeft+15,self.sBarTop+self.headerMarg+30,self.width-self.pBarLeft, self.gBarTop-self.sBarTop,0.08,10)
         
         x,y,w,h = 0,self.gBarTop+20,self.pBarLeft-200,self.height-self.gBarTop-20
-        self.bubbleRegion = GraphicsRegion('speech',x,y,w,h,0.3,20,self.bubbles)
+        self.bubbleRegion = GraphicsRegion('speech',x,y,w,h,0.2,20,self.bubbles)
         self.soundsRegion = GraphicsRegion('sounds',x,y,w,h,0.3,20,self.sounds)
         self.bwRegion = GraphicsRegion('bw',x,y,w,h,0.3,20,self.bw)
+        #self.bgsRegion = GraphicsRegion('bgs',x,y,w,h,0.05,20,self.bgs)
 
+        self.graphicsRegions = [self.bubbleRegion,self.soundsRegion,self.bwRegion] #,self.bgsRegion
         self.selectGraphicRegion(self.soundsRegion)
-        self.graphicsRegions = [self.bubbleRegion,self.soundsRegion,self.bwRegion]
         # and then, all regions
-        self.regions = [self.studioRegion, self.savedRegion,self.bubbleRegion,self.soundsRegion,self.bwRegion]
+        self.regions = [self.studioRegion, self.savedRegion,self.bubbleRegion,self.soundsRegion,self.bwRegion] #,self.bgsRegion
 
     # bubbles: 211558518, https://depositphotos.com/211558518/stock-illustration-big-set-empty-speech-bubble.html
     # more bubles: https://www.vectorstock.com/royalty-free-vector/empty-monochrome-speech-comic-text-bubbles-vector-13248595
@@ -105,13 +134,10 @@ class Studio(Mode):
     # explosions(graphics/colors): Tartila 20799751, https://www.vectorstock.com/royalty-free-vector/exclamation-texting-comic-signs-on-speech-bubbles-vector-20799751
     # aesthetics(backgrounds, buttons): Katie Shaw
     def importGraphics(self):
-        self.bubbles, self.bw, self.sounds = [],[],[]
+        self.bubbles, self.bw, self.sounds = [],[],[] #, self.bgs,[]
         for f in os.listdir('graphics/comics/bubbles'): # BUBBLES
             img = self.loadImage(f"graphics/comics/bubbles/{f}")
             if(f[0] == 'r'):
-                cv = pilToCV(img)
-                cv = mirrorImage(cv)
-                img = cvToPIL(cv)
                 direct = 'right'
             elif(f[0] == 'l'):
                 direct = 'left'
@@ -127,6 +153,14 @@ class Studio(Mode):
             img = self.loadImage(f"graphics/comics/bw/{f}")
             graphicAsClip = Clip(img,img,0,0,img.size[0],img.size[1],typ='graphic')
             self.bw.append(graphicAsClip)
+        for f in os.listdir('graphics/comics/narrations'): # NARRATIONS
+            img = self.loadImage(f"graphics/comics/narrations/{f}")
+            graphicAsClip = Clip(img,img,0,0,img.size[0],img.size[1],typ='narration')
+            self.bubbles.append(graphicAsClip)
+        '''for f in os.listdir('graphics/comics/bgs'): # NARRATIONS
+            img = self.loadImage(f"graphics/comics/bgs/{f}")
+            graphicAsClip = Clip(img,img,0,0,img.size[0],img.size[1],typ='graphic') # ACTUALLY BACKGROUND!!!!!
+            self.bgs.append(graphicAsClip)'''
         img = Image.open(f'graphics/labels/editor.png')
         self.editorLabel = ('editor',self.oMarg+img.size[0]//2,self.oMarg+img.size[1]//2,img)
         img = Image.open(f'graphics/labels/saved.png')
@@ -170,6 +204,8 @@ class Studio(Mode):
             if(butt.checkHover(event.x,event.y)): return
         for butt in self.controls:
             if(butt.checkHover(event.x,event.y)): return
+        for butt in self.graphicButtons:
+            if(butt.label != self.currGraphicButton.label and butt.checkHover(event.x,event.y)): return
 
     def mousePressed(self,event):
         if(self.recordButt.isClicked(event.x,event.y)):
@@ -187,10 +223,13 @@ class Studio(Mode):
             return
         elif(self.backButt.isClicked(event.x,event.y)):
             self.app.setActiveMode(self.app.splashScreenMode)
+        elif(self.editing and not self.enterText and self.undoButt.isClicked(event.x,event.y)):
+            self.currEditorRegion.undo()
         for butt in self.graphicButtons:
             if(butt.isClicked(event.x,event.y) and butt.label != self.currGraphicButton.label):# and self.graphicsRegionActive(butt.label)):
                 self.selectGraphicRegion(self.regionWithName(butt.label))
                 butt.swapHover()
+                butt.hover = False
                 self.currGraphicButton.swapHover()
                 self.currGraphicButton = butt
         
@@ -200,17 +239,16 @@ class Studio(Mode):
                     self.currEditorRegion.applyFilter(butt.label)
                     return
                 else:
-                    print('applying to all')
                     for clip in self.studioRegion.drawables:
-                        print(f'applying to {clip.name}')
-                        clip.editor.applyFilter(butt.label)
-                        clip.package()
+                        if(clip.editor != None):
+                            clip.editor.applyFilter(butt.label)
+                            clip.package()
                     return
         for region in self.regions:
             if(not region.active): continue # if inactive, don't respond to dragging
             for i in range(len(region.drawables)):
                 drawable = region.drawables[i]
-                if drawable.typ == 'bubble' and self.checkBubbleClicked(region,event): return # CHECKS BUBBLE CLICKS
+                if (drawable.typ == 'bubble' or drawable.typ == 'narration') and self.checkBubbleClicked(region,event): return # CHECKS BUBBLE CLICKS
                 if(region.canMove(i) and drawable.isClicked(event.x,event.y)):
                     self.dragX, self.dragY, self.draggedClip = event.x,event.y,drawable
                     self.prevRegion = region
@@ -284,18 +322,11 @@ class Studio(Mode):
                 self.currEditorRegion.insertBubbleText(mess,x,y,graphic,self.textSize)
     
     def selectGraphicRegion(self,reg):
-        if(reg == self.bubbleRegion):
-            self.bubbleRegion.active = True
-            self.soundsRegion.active = False
-            self.bwRegion.active = False
-        elif(reg == self.soundsRegion):
-            self.bubbleRegion.active = False
-            self.soundsRegion.active = True
-            self.bwRegion.active = False
-        elif(reg == self.bwRegion):
-            self.bubbleRegion.active = False
-            self.soundsRegion.active = False
-            self.bwRegion.active = True
+        if(self.graphicsRegions != None):
+            for region in self.graphicsRegions:
+                region.active = False
+                if(reg == region):
+                    region.active = True
 
     def regionWithName(self,regName):
         for reg in self.graphicsRegions:
@@ -310,7 +341,10 @@ class Studio(Mode):
                 return False
 
     def isGraphicsRegion(self,regName):
-        return regName == self.soundsRegion.name or regName == self.bwRegion.name or regName == self.bubbleRegion.name
+        for region in self.graphicsRegions:
+            if(region.name == regName):
+                return True
+        return False
 
     def openEditor(self,drawable):
         self.editing = True
@@ -345,11 +379,11 @@ class Studio(Mode):
         self.vid = cv2.VideoCapture(0)
         ret, self.frame = self.vid.read(0)
         self.windowFrac = 1/3
-        self.minW, self.minH = int(self.frame.shape[1]*self.windowFrac), int(self.frame.shape[0]*self.windowFrac)
         self.w, self.h = self.frame.shape[1], self.frame.shape[0]
+        self.minW, self.minH = int(self.w*self.windowFrac), int(self.h*self.windowFrac)
         cv2.namedWindow('commands')
         cv2.moveWindow('commands',100,100)
-        cv2.imshow('commands',cv2.imread('webcam.png'))
+        cv2.imshow('commands',cv2.imread('graphics/webcam.png'))
         cv2.namedWindow('recording')
         #cv2.setMouseCallback('recording',self.cvMouseActed)
     
@@ -360,7 +394,7 @@ class Studio(Mode):
             self.vid.release()
             cv2.destroyAllWindows()
             return
-        elif(key == ord('s')):
+        elif(key == ord('s')): # and type(self.imgCartoon) != NoneType
             self.saveSnap()
             self.recording = False
             self.vid.release()
@@ -374,24 +408,23 @@ class Studio(Mode):
             return
         
         ret, self.frame = self.vid.read()
-        self.imgCartoon = cart(self.frame) #AHHHH
+        self.resized = cv2.resize(self.frame,(self.w,self.h)) #self.w//2,self.h//2
+        self.imgCartoon = cart(self.resized) #AHHHH
+        self.imgCartoon = cv2.resize(self.imgCartoon,(self.minW,self.minH)) #AHHHH
         if(self.vidOut != None):
             self.vidOut.write(self.frame)
-        self.show()
+        cv2.imshow("recording",self.imgCartoon)
         
     def saveSnap(self):
         # the working/showing image is "img" and is a PIL Image object
         # the original stored image will be used to update the image, and is a CV-compatible nparray
-        cv2.imwrite("savedIm.jpg",self.imgCartoon)
+        saved = cart(self.frame)
+        cv2.imwrite("savedIm.jpg",saved)
         currIm = self.loadImage("savedIm.jpg")
         w, h = currIm.size[0], currIm.size[1]
         newClip = Clip(currIm,self.frame,0,0,w,h,editor=[])
         self.studioRegion.addDrawable(newClip,self.savedRegion)
         self.regions.append(newClip.editor)
-
-    def show(self):
-        resized = cv2.resize(self.imgCartoon,(self.minW,self.minH))
-        cv2.imshow("recording",resized)
     
     ########################################################################
     ################## Video Processing, Auto-Generation ###################
@@ -400,7 +433,7 @@ class Studio(Mode):
     def processVid(self):
         v = cv2.VideoCapture("vidOut.avi")
         self.faceVid = cv2.VideoWriter("faceVid.avi",cv2.VideoWriter_fourcc("M","J","P","G"),5,(self.w,self.h),True)
-        faceCascade = cv2.CascadeClassifier("haarcascades/haarcascade_frontalface_default.xml")
+        #faceCascade = cv2.CascadeClassifier("haarcascades/haarcascade_frontalface_default.xml")
         self.totalFrames, self.faceFrames = 0,0
         while(True):
             frameExists, frame = v.read()
@@ -420,12 +453,15 @@ class Studio(Mode):
             self.totalFrames += 1
         self.packageFrames()
     
+    emotions = ('angry', 'disgust', 'fear', 'happy', 'sad', 'surprise', 'neutral')  
+    
     def packageFrames(self):
-        faceIndices = sorted(random.sample([i for i in range(self.faceFrames)],min(self.faceFrames,4)))
+        faceIndices = sorted(random.sample([i for i in range(self.faceFrames)[::2]],min(self.faceFrames,4)))
         self.autoImages = []
         self.AutoFrames = []
         self.describeFaces = []
         self.isDark = []
+        self.emotions = []
         f = cv2.VideoCapture('faceVid.avi')
         v = cv2.VideoCapture('vidOut.avi')
         for i in range(self.faceFrames):
@@ -434,6 +470,7 @@ class Studio(Mode):
                 print(f'reading frame {i+1}')
                 self.autoImages.append(frame)
                 self.isDark.append(isDark(frame))
+                self.emotions.append(getEmotion(frame)) # HEREHRHREHREHRHEHREHHRHEHREHRHEHREHRHEHRHEREHRERE
                 imgClip = self.processFrame(frame)
                 self.AutoFrames.append(imgClip)
                 self.describeFaces.append(True)
@@ -452,19 +489,28 @@ class Studio(Mode):
     def commentate(self):
         if(not self.any(self.describeFaces)): self.currMood = 'empty'
         elif(self.all(self.isDark)): self.currMood = 'dark'
+        elif(self.emotions.count('none') < 3):
+            newSeq = []
+            for i in range(len(self.emotions)):
+                newSeq.append(emotes[self.emotions[i]][i])
+            sequences['my own sequence'] = newSeq
+            self.currMood = 'my own sequence'
         else: self.currMood = 'doubt'
         i = 0
         for clip in self.AutoFrames:
             editor = clip.editor
             if(len(editor.drawables)>1):
                 bubble = editor.drawables[1]
-                mess,x,y = sequences[self.currMood][i], bubble.x + bubble.w*bubbleRatio*editor.scale//2,bubble.y + bubble.h*bubbleRatio*editor.scale//2
+                mess,x,y = sequences[self.currMood][i], bubble.x + bubble.w*self.bubbleRatio*editor.scale//2,bubble.y + bubble.h*self.bubbleRatio*editor.scale//2
                 editor.insertBubbleText(mess,x,y,bubble,1.5)
             self.bubbleRegion.removeDrawable(clip)
-            self.regions.append(clip.editor)
+            self.regions.append(editor)
             self.studioRegion.addDrawable(clip,self.savedRegion)
             i += 1
             
+    def countNeutrals(self):
+        return self.emotions.count('none')
+
     def any(self,boolList):
         for isTrue in boolList:
             if(isTrue):
@@ -478,9 +524,6 @@ class Studio(Mode):
         return True
 
     def processFrame(self,cvImg,face=True):
-        faceCascade = cv2.CascadeClassifier("haarcascades/haarcascade_frontalface_default.xml")
-        mouthCascade = cv2.CascadeClassifier("haarcascades/haarcascade_smile.xml")
-        
         if(face):
             faces = faceCascade.detectMultiScale(cvImg)
             largestFace, area = None,0
@@ -498,7 +541,7 @@ class Studio(Mode):
                 if(largestMouth != None):
                     mX,mY,mW,mH = largestMouth
                     #cv2.rectangle(cvImg,(fX+mX,fY+3*fH//4+mY),(fX+mX+mW,fY+3*fH//4+mY+mH),(0,255,0),5)
-                    leftX, rightX, pointY = fX,fX+fW,fY+3*fH//4+mY-20
+                    leftX, rightX, pointY = fX-50,fX+fW+50,fY+3*fH//4+mY-20
                     
                     currIm = cvToPIL(cvImg)
                     w, h = currIm.size[0], currIm.size[1]
@@ -619,11 +662,14 @@ class Studio(Mode):
         for butt in self.filterButtons:
             butt.draw(canvas)
         for butt in self.controls:
-            butt.draw(canvas)
+            if(self.editing or butt.label != 'undo'):
+                butt.draw(canvas)
         for butt in self.graphicButtons:
             butt.draw(canvas)
 
     def drawFrame(self,canvas):
+        if(self.enterText):
+            canvas.create_image((self.pBarLeft+self.width)//2, (self.gBarTop + self.height+80)//2,image=ImageTk.PhotoImage(self.blueBorder))
         canvas.create_image(self.width//2, self.height//2,image=ImageTk.PhotoImage(self.backgroundImage))
 
     def drawLabels(self,canvas):
@@ -659,7 +705,8 @@ class MyModalApp(ModalApp):
         app.aboutMode = AboutMode()
         app.editorHelpMode = AltHelpMode()
         app.setActiveMode(app.splashScreenMode)
-        app.timerDelay = 10
+        app.timerDelay = 70
+        app.mouseMovedDelay = 70
 
 def playGame():
     MyModalApp(width = 1200, height = 800)

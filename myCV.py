@@ -6,6 +6,13 @@ from cmu_112_graphics import *
 from PIL import Image
 from cvInterface import *
 
+############################################################################
+# myCV.py:
+# This contains many copycat methods from opencv that I implemented myself
+# as an exercise in complexity; they are largely utility methods that
+# I then use in my image processing.
+############################################################################
+
 def cannySobel(gray,n=5,minVal=40,maxVal=75):
     gauss = gaussianGen(n)
     
@@ -286,4 +293,3 @@ def transform(img,mat):
             if(0<=y<img.shape[1] and 0<=x<img.shape[0]):
                 result[x,y] = img[newCoord[0],newCoord[1]]
     return result
-

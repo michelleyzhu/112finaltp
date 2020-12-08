@@ -6,6 +6,55 @@ from cmu_112_graphics import *
 from PIL import Image
 from myCV import *
 
+from keras.models import model_from_json  
+from keras.preprocessing import image
+
+############################################################################
+# cvInterface.py:
+# This contains methods that allow me to interface with myCV; it contains
+# everything which will allow me to deal with processing my images in
+# nparray format(filters, masks, etc).
+############################################################################
+
+faceCascade = cv2.CascadeClassifier("haarcascades/haarcascade_frontalface_default.xml")
+gauss = gaussianGen(n=3)
+#load model  
+model = model_from_json(open("fer.json", "r").read())  
+#load weights
+model.load_weights('fer.h5')
+
+# taken!!! CITE THIS BITCH
+def getEmotion(img):
+    origShape = (img.shape[1],img.shape[0])
+    gray = cvtGray(img)
+    faces = faceCascade.detectMultiScale(gray, 1.32, 5)  
+    largestFace, area = None,0
+    for x,y,w,h in faces:
+        if(largestFace == None or w*h > area):
+            largestFace, area = (x,y,w,h), w*h
+    if(largestFace != None and area > 80000):
+        mx,my,mw,mh = largestFace
+        # cv2.rectangle(test_img,(x,y),(x+w,y+h),(255,0,0),thickness=7)  
+        roi_gray=gray[my:my+mw,mx:mx+mh]#cropping region of interest i.e. face area from  image  
+        roi_gray=cv2.resize(roi_gray,(48,48))  
+        img_pixels = image.img_to_array(roi_gray)  
+        img_pixels = np.expand_dims(img_pixels, axis = 0)  
+        img_pixels /= 255  
+
+        predictions = model.predict(img_pixels)  
+
+        #find max indexed array  
+        max_index = np.argmax(predictions[0])  
+
+        emotions = ('angry', 'disgust', 'fear', 'happy', 'sad', 'surprise', 'neutral')  
+        predicted_emotion = emotions[max_index]  
+
+        #cv2.putText(img, predicted_emotion, (int(x), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 5, (0,0,255), 2)  
+        return predicted_emotion
+    return 'none'
+    #resized_img = cv2.resize(img, origShape)
+    #cv2.imshow('Facial emotion analysis ',resized_img) # COMMENT OUT LATER
+
 def pilToCV(img):
     rgb = img.convert('RGB')
     cvIm = np.array(img)
@@ -41,12 +90,20 @@ def overlayMask(img,mask,x0,y0,scale=1):
     if(len(img.shape) == 2): # grayscale, then convert to rgb
         img = np.dstack([img,img,img])
     if(0 <= x0 and x0+mask.shape[1] <= img.shape[1] and 0 <= y0 and y0+mask.shape[0] <= img.shape[0]):
-        centering = cvtGray(mask).astype('float32')-230 # converts to gray, removes most
-        centering = np.dstack([centering,centering,centering]) # now we only want the negative values to be 1
-        binary = ((np.sign(-centering)+1)/2).astype('uint8') # converts to 0 for not show, 1 for show
-        upper = binary*mask
+        if(mask.shape[2] == 4): # rgba, then different masking
+            centering = mask.astype('float32')[:,:,3]-1 # gets the a channel, makes transparents negative
+            centering = np.dstack([centering,centering,centering])
+            binary = ((np.sign(centering)+1)/2).astype('uint8')
+            bgr = mask[:,:,:3] # flips rgba to bgr
+            gray = cvtGray(bgr)
+            mask = np.dstack([gray,gray,gray])
+            upper = mask*binary
+        else:
+            centering = cvtGray(mask).astype('float32')-230 # converts to gray, removes most
+            centering = np.dstack([centering,centering,centering]) # now we only want the negative values to be 1
+            binary = ((np.sign(-centering)+1)/2).astype('uint8') # converts to 0 for not show, 1 for show
+            upper = binary*mask
         lower = img[y0:y0+mask.shape[0],x0:x0+mask.shape[1]]*(1-binary)
-        
         img[y0:y0+mask.shape[0],x0:x0+mask.shape[1]] = upper+lower
     else:
         return img, False
@@ -84,7 +141,6 @@ def cannyFilter(img):
     return (1-cannySobel(gray))*255
 
 def vignette(img,output):
-    faceCascade = cv2.CascadeClassifier("haarcascades/haarcascade_frontalface_default.xml")
     faces = faceCascade.detectMultiScale(img)
     biggestFace,maxArea = None,0
     for (x,y,fW,fH) in faces:
@@ -109,7 +165,7 @@ def halfDotFilter(img,output):
     return halfDot(img)*output
 
 def halfDot(img): # passes in bgr image
-    gauss = gaussianGen(n=3)
+    #gauss = gaussianGen(n=3)
     gray = cvtGray(img)
     gray = cv2.filter2D(gray,3,gauss)
     gray = adjustContrast(gray,80)
@@ -148,7 +204,7 @@ def halftone(origImg):
     m = ((255-g-black)/(255-black))*255
     y = ((255-b-black)/(255-black))*255
     #k = np.dstack([black,black,black])
-    faceCascade = cv2.CascadeClassifier("haarcascades/haarcascade_frontalface_default.xml")
+    #faceCascade = cv2.CascadeClassifier("haarcascades/haarcascade_frontalface_default.xml")
     cv2.imwrite('result.jpg',img)
     faces = faceCascade.detectMultiScale(img)
     biggestFace,maxArea = None,0
@@ -162,20 +218,12 @@ def halftone(origImg):
         cX,cY = xPos+fW//2,yPos+fH//2
     else:
         cX,cY = w//2,h//2
-    '''mMat = cv2.getRotationMatrix2D((cX,cY),15,1)
-    yMat = cv2.getRotationMatrix2D((cX,cY),30,1)
-    #kMat = cv2.getRotationMatrix2D((cX,cY),44,1)
-    mTilt = cv2.warpAffine(m,mMat,(w,h))
-    yTilt = cv2.warpAffine(y,yMat,(w,h))
-    #kTilt = cv2.warpAffine(k,kMat,(w,h))'''
-
 
     mMat = getMatrix(cX,cY,15)
     yMat = getMatrix(cX,cY,30)
     mTilt = cv2.warpAffine(m,mMat,(w,h))
     yTilt = cv2.warpAffine(y,yMat,(w,h))
     
-
     mDots = 1-halfDotter(mTilt)
     yDots = 1-halfDotter(yTilt)
     #kDots = 1-halfDotter(kTilt)
@@ -254,7 +302,8 @@ def insertTitle(img,title):
 #### TESTING PURPOSES#####
 
 def justIm():
-    frame = cv2.imread('surprise.jpg')
+    frame = cv2.imread('graphics/comics/bubbles/l5.png',cv2.IMREAD_UNCHANGED)
+    #frame = cv2.cvtColor(frame,cv2.COLOR_BGR2RGBA)
     #w,h = img.shape[1],img.shape[0]
     #img = img[h//3:2*h//3, w//3:2*w//3]
     #mat = getMatrix(h//2,w//2,img,90)
@@ -262,7 +311,7 @@ def justIm():
     #img = insertText(img,'dummy thick',(50,50),(255,255,255))
     #img = outline(img,30)
     #img = np.ones(img.shape)*[238,234,155]
-    cv2.imwrite("result.jpg",frame)
+    cv2.imwrite("result.png",frame)
     print("completed")
 
 def dumb():
@@ -272,7 +321,7 @@ def dumb():
     windowFrac = 1/2
     minW, minH = int(frame.shape[1]*windowFrac), int(frame.shape[0]*windowFrac)
     w, h = frame.shape[1], frame.shape[0]
-    faceCascade = cv2.CascadeClassifier("haarcascades/haarcascade_frontalface_default.xml")
+    #faceCascade = cv2.CascadeClassifier("haarcascades/haarcascade_frontalface_default.xml")
     mouthCascade = cv2.CascadeClassifier("haarcascades/haarcascade_smile.xml")
     #mouthCascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascades/Mouth.xml") 
     while True:

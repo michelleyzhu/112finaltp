@@ -1,14 +1,19 @@
 import math, copy, random, time, string, os
 import cv2 as cv2
 import numpy as np
-#from tkinter import *
 from cmu_112_graphics import *
 import tkinter.font as tkFont
-#from cvhelpers import *
 from myCV import *
 from cvInterface import *
 from widgets import *
 from main import *
+
+############################################################################
+# modes.py:
+# This contains the different modes that my studio app runs through,
+# including the start, about and instructions pages. Each has a simple MVC
+# interface.
+############################################################################
 
 # Directly copied from https://www.cs.cmu.edu/~112/notes/notes-recursion-part2.html#removeTempFiles
 def removeTempFiles(path, suffix='.DS_Store'):

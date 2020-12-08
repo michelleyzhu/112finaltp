@@ -9,7 +9,7 @@ from myCV import *
 from cvInterface import *
 
 
-bubbleRatio = 3.5
+bubbleRatio = 2.5
 headerMarg = 20
 pBarLeft, gBarTop, sBarTop, oMarg = 870, 480, 200, 30
 class Region():
@@ -75,7 +75,7 @@ class StudioRegion(Region):
         self.drawables = []
         
         self.shownDrawables = [False]*self.size
-        self.finalI = self.size-1 # should initialize to -1, empty drawables
+        self.finalI = self.size
         for i in range(self.size):
             self.drawables.append(self.defaultClip.copy())
         self.relocateAll()
@@ -198,6 +198,7 @@ class EditorRegion(Region):
         self.oMarg, self.headerMarg = 50,20
         self.finalProduct = img
         self.filter = 'default'
+        #self.justFiltered = None
         self.prevNumGraphics = 1
         self.textUpdated = None
         self.finishedBubble = False
@@ -210,9 +211,6 @@ class EditorRegion(Region):
     def resizeAll(self):
         for drawable in self.drawables:
             self.scaleDrawable(drawable)
-            #drawable.x -= self.x0
-            #drawable.y -= self.y0
-            # combine images, insert into finalProduct
 
     def addDrawable(self,drawable,uselessParam): # parameters need to align for for loop in main lol
         if(drawable.origImg != self.drawables[0].origImg):
@@ -226,14 +224,24 @@ class EditorRegion(Region):
     def insertDrawable(self,drawable,uselessParam):
         self.addDrawable(drawable,self)
     
+    def undo(self):
+        if(len(self.drawables) > 1):
+            removed = self.drawables.pop()
+            if(removed.typ == 'bubble'):
+                for message in self.bubbleTexts[::-1]:
+                    mess,cX,cY,graphic,size = message
+                    if(graphic == removed):
+                        self.bubbleTexts.remove(message)
+            self.updateGraphics()
+            
     # RETURNS NONE or the center of the bubble(hopefully)
     def bubbleClicked(self,x,y):
         for graphic in self.drawables[1:][::-1]:
-            if(graphic.typ != 'bubble'):
+            if(graphic.typ != 'bubble' and graphic.typ != 'narration'):
                 continue
             w,h = int(graphic.img.size[0]*bubbleRatio),int(graphic.img.size[1]*bubbleRatio)
             x0,y0 = graphic.x,graphic.y
-            if(x0 < x < x0+w and y0 < y < y0+h):
+            if(x0 < x < x0+graphic.img.size[0]/self.scale and y0 < y < y0+graphic.img.size[1]/self.scale):
                 return graphic.x + graphic.w*bubbleRatio*self.scale//2,graphic.y + graphic.h*bubbleRatio*self.scale//2,graphic, 1.75
         return None
     
@@ -246,31 +254,44 @@ class EditorRegion(Region):
         self.bubbleTexts.append((text,x,y,graphic,size))
         self.textUpdated = (text,x,y,graphic,size)
         
-
     def updateGraphics(self,filterChanged=False):
         # disaster? copy
         tempClip = self.drawables[0]
         # applying filter
         tempImg = tempClip.origImg#.astype('uint8')
-        if(self.filter == 'dot'):
-            tempImg = halfDotFilter(tempImg,cart(tempImg))
-        elif(self.filter == 'pastel'):
-            tempImg = pastelFilter(cart(tempImg))
+        if(filterChanged):
+            if(self.filter == 'dot'):
+                tempImg = halfDotFilter(tempImg,cart(tempImg))
+            elif(self.filter == 'pastel'):
+                tempImg = pastelFilter(cart(tempImg))
+            elif(self.filter == 'default'):
+                tempImg = cart(tempImg)
+            elif(self.filter == 'sketch'):
+                tempImg = cannyFilter(tempImg)
+            elif(self.filter == 'vignette'):
+                tempImg = vignette(tempImg,cart(tempImg))
+            elif(self.filter == 'benday'):
+                tempImg = halftone(tempImg)
+            self.justFiltered = tempImg
         elif(self.filter == 'default'):
             tempImg = cart(tempImg)
-        elif(self.filter == 'sketch'):
-            tempImg = cannyFilter(tempImg)
-        elif(self.filter == 'vignette'):
-            tempImg = vignette(tempImg,cart(tempImg))
-        elif(self.filter == 'benday'):
-            tempImg = halftone(tempImg)
+            self.justFiltered = tempImg
+        else:
+            tempImg = self.justFiltered
         success = True
         for graphic in self.drawables[1:]:
             ratio = 1
-            if(graphic.typ == 'bubble'):
+            if(graphic.typ == 'bubble' or graphic.typ == 'narration'):
                 ratio = bubbleRatio
             elif(graphic.typ == 'graphic'):
                 ratio = 1.5
+            '''elif(graphic.typ == 'narration'):
+                ratio = 2
+                if(graphic.cX > 400): graphic.x = 500
+                else: graphic.x = self.oMarg
+                if(graphic.cY > 250): graphic.y = gBarTop - graphic.h
+                else: graphic.y = self.oMarg
+            '''
             scaledGraphic = graphic.img.resize((int(graphic.img.size[0]*ratio),int(graphic.img.size[1]*ratio)))
             mask = pilToCV(scaledGraphic)
             #print(f'graphic,{graphic.x,graphic.y}')
@@ -281,24 +302,24 @@ class EditorRegion(Region):
         for message in self.bubbleTexts:
             mess,cX,cY,graphic,size = message
             messages = mess.split('`')
-            y = (cY - 30*size*(len(messages))/2)/self.scale# messages = # of lines
+            y = (cY - 30*size*(len(messages))/2)/self.scale+10# messages = # of lines
             for m in messages:
-                x = (cX - 4*size*len(m)/2-75)/self.scale-self.oMarg
-                tempImg = insertText(tempImg,f'{m}',(int(x),int(y)),(255,255,255),size)
+                x = (cX - 4*size*len(m)/2-60)/self.scale-self.oMarg
+                tempImg = insertText(tempImg,f'{m}',(int(x),int(y)),(0,0,0),size)
                 y += 25*size # what will the difference be? Check
         tempImg = cvToPIL(tempImg)
 
         tempClip.img = tempImg # removed copy, disaster?
         tempClip.scaleImg(self.scale)
         self.finalProduct = tempClip.copy() # removed copy, disaster?
-        self.finalProduct.img.save('finalProduct.png','PNG')
         return success
 
     def updateTextSize(self,size):
         self.textSize = size
     def applyFilter(self,filt):
         self.filter = filt
-        self.updateGraphics(True)
+        if(self.drawables[0] != None):
+            self.updateGraphics(True)
     def draw(self,canvas,littleText=False):
         if(self.prevNumGraphics != len(self.drawables) or self.finishedBubble):
             self.updateGraphics(False)
