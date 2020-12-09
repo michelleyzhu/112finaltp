@@ -3,7 +3,6 @@ import cv2 as cv2
 import numpy as np
 from cmu_112_graphics import *
 import tkinter.font as tkFont
-#from myCV import *
 from cvInterface import *
 from widgets import *
 from modes import *
@@ -19,28 +18,6 @@ faceCascade = cv2.CascadeClassifier("haarcascades/haarcascade_frontalface_defaul
 mouthCascade = cv2.CascadeClassifier("haarcascades/haarcascade_smile.xml")
     
 ##### CITATION: see importGraphics() for citation of images #####
-bank = {
-    'dumb': "hmmm... I'm so confused",
-    'dark': "why is it so dark in here??",
-    'tilt': "I'm confused..."
-}
-narrator = ['gaze upon a`nerd in its`natural habitat','look, a loser']
-sequences = {
-    'doubt':['I may not be`great at art...','or anything`in general...','what was my`point again?','ah, code`is good'],
-    'dark':['Why is it so`dark in here??','ah, I know...',"it's the absence`of all intelligence.",'#hardcodedburn'],
-    'tilt':['I am so confused`by the general`state of affairs.','Why do I`say that?','#lol','No reason, I just`look cool with`my head tilted.'],
-    'empty':["OMG look away","I'm camera shy","and I won't`let the FBI see`my face",'cover']
-}
-emotes = {
-    'anger':['The comic sans`font sparks`anger in me.',"Well, I'm angry`it's not in`this app!","Michelle SHOULD'VE`put it in...","but she was`TIRED, I guess."],
-    'disgust':['The comic sans`font is SO`gross.',"I'm disgusted`that it's not`in this app!","Michelle is so`lame for not`pulling it off",'I guess she`was too "tired"'],
-    'fear':["The comic sans`font scares me.","Well, I'm scared`about why it's`not in this app!","shouldn't michelle`have put`it in??","what prevented`her from pulling`that off?"],
-    'happy':["The comic sans`font brings me`all of my joy.","Well, I'm okay`with not having`it in this app!","wouldn't it`have been cool`to have that?","it's fine that`she couldn't`do it."],
-    'sad':["The comic sans`font depresses`me.","Well, I'm sad`it's not in`this app!","It would've been`nice to have...","she was probably`too tired and`dumb. :(("],
-    'neutral':["The comic sans`font is cool.","Well, I wish`it was in`this app.","It would be`a nice feature,","oh well, she can't`do it all."],
-    'surprise':["The comic sans`font always`startles me.","I was shocked`to see it's not`in this app!","It would've been`SO cool to have,","and I can't`believe she didn't`pull that off!"],
-    'none':["This nerd likes`comic sans font.","they want it to be in the app.","comic sans`would've been`cool...","the nerd is sad."]
-}
 
 class Studio(Mode):
     def appStarted(self):
@@ -77,6 +54,24 @@ class Studio(Mode):
         # More initialization - categorized!
         self.importGraphics()
         self.initializeStudio()
+        self.defineComments()
+    
+    def defineComments(self):
+        self.sequences = {
+            'doubt':['I may not be`great at art...','or anything`in general...','what was my`point again?','ah, code`is good'],
+            'dark':['Why is it so`dark in here??','ah, I know...',"it's the absence`of all intelligence.",'#hardcodedburn'],
+            'empty':["OMG look away","I'm camera shy","and I won't`let the FBI see`my face",'cover']
+        }
+        self.emotes = {
+            'anger':['The comic sans`font sparks`anger in me.',"Well, I'm angry`it's not in`this app!","Michelle SHOULD'VE`put it in...","but she was`TIRED, I guess."],
+            'disgust':['The comic sans`font is SO`gross.',"I'm disgusted`that it's not`in this app!","Michelle is so`lame for not`pulling it off",'I guess she`was too "tired"'],
+            'fear':["The comic sans`font scares me.","Well, I'm scared`about why it's`not in this app!","shouldn't michelle`have put`it in??","what prevented`her from pulling`that off?"],
+            'happy':["The comic sans`font brings me`all of my joy.","Well, I'm okay`with not having`it in this app!","wouldn't it`have been cool`to have that?","it's fine that`she couldn't`do it."],
+            'sad':["The comic sans`font depresses`me.","Well, I'm sad`it's not in`this app!","It would've been`nice to have...","she was probably`too tired and`dumb. :(("],
+            'neutral':["The comic sans`font is cool.","Well, I wish`it was in`this app.","It would be`a nice feature,","oh well, she can't`do it all."],
+            'surprise':["The comic sans`font always`startles me.","I was shocked`to see it's not`in this app!","It would've been`SO cool to have,","and I can't`believe she didn't`pull that off!"],
+            'none':["This nerd likes`comic sans font.","they want it to be in the app.","comic sans`would've been`cool...","the nerd is sad."]
+        }
         
     def initializeStudio(self):
         self.backgroundImage = Image.open(f'graphics/backgrounds/frame.png')
@@ -128,11 +123,9 @@ class Studio(Mode):
         # and then, all regions
         self.regions = [self.studioRegion, self.savedRegion,self.bubbleRegion,self.soundsRegion,self.bwRegion] #,self.bgsRegion
 
-    # bubbles: 211558518, https://depositphotos.com/211558518/stock-illustration-big-set-empty-speech-bubble.html
-    # more bubles: https://www.vectorstock.com/royalty-free-vector/empty-monochrome-speech-comic-text-bubbles-vector-13248595
     # black/white(graphics/bw): Max Luczynski, https://www.behance.net/gallery/47977047/One-Hundred-hand-drawn-cartoon-and-comic-symbols
     # explosions(graphics/colors): Tartila 20799751, https://www.vectorstock.com/royalty-free-vector/exclamation-texting-comic-signs-on-speech-bubbles-vector-20799751
-    # aesthetics(backgrounds, buttons): Katie Shaw
+    # aesthetics(backgrounds, buttons, text bubbles): Katie Shaw(CMU 2024)
     def importGraphics(self):
         self.bubbles, self.bw, self.sounds = [],[],[] #, self.bgs,[]
         for f in os.listdir('graphics/comics/bubbles'): # BUBBLES
@@ -456,7 +449,10 @@ class Studio(Mode):
     emotions = ('angry', 'disgust', 'fear', 'happy', 'sad', 'surprise', 'neutral')  
     
     def packageFrames(self):
-        faceIndices = sorted(random.sample([i for i in range(self.faceFrames)[::2]],min(self.faceFrames,4)))
+        if(self.faceFrames > 8):
+            faceIndices = sorted(random.sample([i for i in range(self.faceFrames)[::2]],4))
+        else:
+            faceIndices = sorted(random.sample([i for i in range(self.faceFrames)],min(self.faceFrames,4)))
         self.autoImages = []
         self.AutoFrames = []
         self.describeFaces = []
@@ -480,28 +476,36 @@ class Studio(Mode):
                     break
         while(len(self.AutoFrames) < min(4,self.totalFrames)):
             ret, frame = v.read()
-            if(not np.array_equal(frame, self.autoImages)):
+            if(not self.alreadyIncluded(frame)):
                 imgClip = self.processFrame(frame,False)
                 self.AutoFrames.append(imgClip) # The appended should be clip(drawable) objects
                 self.describeFaces.append(False)
         self.commentate()
 
+    def alreadyIncluded(self,frame):
+        for included in self.autoImages:
+            if(np.array_equal(frame,included)):
+                return True
+        return False
+
     def commentate(self):
         if(not self.any(self.describeFaces)): self.currMood = 'empty'
         elif(self.all(self.isDark)): self.currMood = 'dark'
-        elif(self.emotions.count('none') < 3):
+        elif(self.emotions.count('none') < 3 and len(self.emotions) == 4):
             newSeq = []
             for i in range(len(self.emotions)):
-                newSeq.append(emotes[self.emotions[i]][i])
-            sequences['my own sequence'] = newSeq
+                newSeq.append(self.emotes[self.emotions[i]][i])
+            self.sequences['my own sequence'] = newSeq
             self.currMood = 'my own sequence'
+            print(self.emotions,self.sequences['my own sequence'])
         else: self.currMood = 'doubt'
         i = 0
+        #print(sequences[self.currMood])
         for clip in self.AutoFrames:
             editor = clip.editor
             if(len(editor.drawables)>1):
                 bubble = editor.drawables[1]
-                mess,x,y = sequences[self.currMood][i], bubble.x + bubble.w*self.bubbleRatio*editor.scale//2,bubble.y + bubble.h*self.bubbleRatio*editor.scale//2
+                mess,x,y = self.sequences[self.currMood][i], bubble.x + bubble.w*self.bubbleRatio*editor.scale//2,bubble.y + bubble.h*self.bubbleRatio*editor.scale//2
                 editor.insertBubbleText(mess,x,y,bubble,1.5)
             self.bubbleRegion.removeDrawable(clip)
             self.regions.append(editor)
@@ -696,6 +700,9 @@ class Studio(Mode):
         if(self.congrats):
             canvas.create_text(200,self.height//15,fill='gray',text=f'{self.title} was saved to myComicStrip.png, go take a look!',font=self.large,anchor='nw')
 
+
+# Use of modes, MyModalApp structure taken from
+# https://www.cs.cmu.edu/~112/notes/notes-animations-part3.html#subclassingModalApp
 class MyModalApp(ModalApp):
     def appStarted(app):
         removeTempFiles('graphics')

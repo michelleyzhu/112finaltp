@@ -23,7 +23,13 @@ model = model_from_json(open("fer.json", "r").read())
 #load weights
 model.load_weights('fer.h5')
 
-# taken!!! CITE THIS BITCH
+
+# The code I used to train my models(fer.json, fer.h5), located in
+# toolbox/train.py, is taken directly from the following tutorial. The
+# following method, used to extract emotions from my given frames and return
+# an emotion label to main.py, is also adapted from code from the following
+# source.
+# https://www.c-sharpcorner.com/article/real-time-emotion-detection-using-python/
 def getEmotion(img):
     origShape = (img.shape[1],img.shape[0])
     gray = cvtGray(img)
@@ -52,8 +58,6 @@ def getEmotion(img):
         #cv2.putText(img, predicted_emotion, (int(x), int(y)), cv2.FONT_HERSHEY_SIMPLEX, 5, (0,0,255), 2)  
         return predicted_emotion
     return 'none'
-    #resized_img = cv2.resize(img, origShape)
-    #cv2.imshow('Facial emotion analysis ',resized_img) # COMMENT OUT LATER
 
 def pilToCV(img):
     rgb = img.convert('RGB')
@@ -65,6 +69,7 @@ def cvToPIL(img):
     img = cv2.cvtColor(img.astype('uint8'),cv2.COLOR_BGR2RGB)
     img = Image.fromarray(img)
     return img
+
 def mirrorImage(img):
     return img[:,::-1,:]
 
@@ -81,11 +86,6 @@ def insertText(img,text,pos,color,size): # size is like 1.75, etc.
     cv2.putText(whiteText, f"{text}",pos,cv2.FONT_HERSHEY_DUPLEX,size,color,thickness=2) # draw thinner white text
     return blackText + whiteText
     
-
-# currently, we take in opencv images
-#(x0,y0) is the top left corner of the mask
-# in relation to img
-# assume mask is 0
 def overlayMask(img,mask,x0,y0,scale=1):
     if(len(img.shape) == 2): # grayscale, then convert to rgb
         img = np.dstack([img,img,img])
@@ -112,7 +112,9 @@ def overlayMask(img,mask,x0,y0,scale=1):
 
 # cartoonify() inspired by the tutorial
 # https://www.askaswiss.com/2016/01/how-to-create-cartoon-effect-opencv-python.html
-# however, I wrote the opencv methods by hand
+# I wrote the opencv methods by hand and adapted it for my own purposes;
+# this tutorial provided me with the pseudocode/steps that give the cartoon
+# effect
 def cart(img,C=0,B=20):
     imgColor = img
     pyrLevels = 3
@@ -141,6 +143,7 @@ def cannyFilter(img):
     return (1-cannySobel(gray))*255
 
 def vignette(img,output):
+    w,h = img.shape[1],img.shape[0]
     faces = faceCascade.detectMultiScale(img)
     biggestFace,maxArea = None,0
     for (x,y,fW,fH) in faces:
@@ -153,7 +156,6 @@ def vignette(img,output):
         cX,cY = x+fW//2,y+fH//2
     else:
         cX,cY = w//2,h//2
-    w,h = img.shape[1],img.shape[0]
     dots = np.ones(img.shape)
     for x in range(0,w,15):
         for y in range(0,h,15):
@@ -182,6 +184,7 @@ def halfDot(img): # passes in bgr image
             cv2.circle(dots,(x,y),radii[y,x],(0,0,0),-1)
     dotInv = 255-dots
     return dots
+
 def halfDotter(cmyk):
     radii = ((255-np.squeeze(cmyk))//60+1).astype('uint8') # 1 for saturation, 2 for value. Which one?
     w,h = cmyk.shape[1],cmyk.shape[0]
@@ -299,7 +302,7 @@ def insertTitle(img,title):
     img = insertText(img,title,(45,92),(255,255,255),1.75)
     return img
 
-#### TESTING PURPOSES#####
+#### TESTING PURPOSES - Unused for the final product #####
 
 def justIm():
     frame = cv2.imread('graphics/comics/bubbles/l5.png',cv2.IMREAD_UNCHANGED)

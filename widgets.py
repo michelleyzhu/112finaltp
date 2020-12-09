@@ -8,7 +8,14 @@ from PIL import Image
 from myCV import *
 from cvInterface import *
 
+############################################################################
+# widgets.py:
+# Object classes that provide me with the drag-and-drop studio-like user
+# interface; this includes the regions, clips and buttons and their
+# various child objects.
+############################################################################
 
+# some preliminary constants, carried over from main.py
 bubbleRatio = 2.5
 headerMarg = 20
 pBarLeft, gBarTop, sBarTop, oMarg = 870, 480, 200, 30

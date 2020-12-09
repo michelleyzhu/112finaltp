@@ -11,6 +11,13 @@ from cvInterface import *
 # This contains many copycat methods from opencv that I implemented myself
 # as an exercise in complexity; they are largely utility methods that
 # I then use in my image processing.
+
+# In order to implement these algorithms, I had to research things like
+# convolution, kernels for respective processing functions, mathematical
+# formulas for things like HSV/CMYK conversions, and the 
+# algorithmic steps for classic filter effects. However, none of the code
+# is copied or based upon anyone else's code, unless explicitly
+# stated.
 ############################################################################
 
 def cannySobel(gray,n=5,minVal=40,maxVal=75):
@@ -28,8 +35,7 @@ def cannySobel(gray,n=5,minVal=40,maxVal=75):
     
     grad = np.sqrt(gX**2 + gY**2)
     grad = np.nan_to_num(grad)
-    theta = np.arctan(gY/gX) # -pi/2, pi/2: 0-pi/4, pi/4-pi/2,pi/2-3pi/2,3pi/2-pi mod pi/4, 
-    # (theta + pi/2) // pi/4: 0 = hori(0,1/0,-1), 1 = (1,1/-1,-1), 2 = vert(1,0/-1,0), 3 = (1,-1/-1,1)
+    theta = np.arctan(gY/gX)
     direct = (theta + np.pi)//1
     direct = np.nan_to_num(direct)
     suppressed = grad*nonMaxSuppress(grad,direct)
@@ -274,6 +280,7 @@ def erosion(inp,kernSize,it=1):
     final = np.where(final!=full,final,1)
     return final.astype('uint8') # if not uint8, WHITE will not be filtered out by applymask
 
+# rotational transformation matrix generator
 def getMatrix(x,y,angle):
     a = math.cos(angle/360*2*math.pi)
     b = math.sin(angle/360*2*math.pi)
