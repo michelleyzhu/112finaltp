@@ -82,7 +82,7 @@ class StudioRegion(Region):
         self.drawables = []
         
         self.shownDrawables = [False]*self.size
-        self.finalI = self.size
+        self.finalI = -1
         for i in range(self.size):
             self.drawables.append(self.defaultClip.copy())
         self.relocateAll()

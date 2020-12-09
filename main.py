@@ -277,8 +277,7 @@ class Studio(Mode):
                 i = 0
                 for drawable in region.drawables:
                     if(type(region) != EditorRegion and drawable.editor == self.currEditorRegion and (type(region) == StudioRegion and region.shownDrawables[i])):
-                        #drawable.package(drawable)
-                        drawable.package()
+                        region.addDrawable(drawable,self.savedRegion)
                     i+=1
                 if(type(region) != EditorRegion):
                     region.active = True
@@ -463,7 +462,6 @@ class Studio(Mode):
         for i in range(self.faceFrames):
             ret, frame = f.read()
             if(i == faceIndices[0]):
-                print(f'reading frame {i+1}')
                 self.autoImages.append(frame)
                 self.isDark.append(isDark(frame))
                 self.emotions.append(getEmotion(frame)) # HEREHRHREHREHRHEHREHHRHEHREHRHEHREHRHEHRHEREHRERE
@@ -497,10 +495,8 @@ class Studio(Mode):
                 newSeq.append(self.emotes[self.emotions[i]][i])
             self.sequences['my own sequence'] = newSeq
             self.currMood = 'my own sequence'
-            print(self.emotions,self.sequences['my own sequence'])
         else: self.currMood = 'doubt'
         i = 0
-        #print(sequences[self.currMood])
         for clip in self.AutoFrames:
             editor = clip.editor
             if(len(editor.drawables)>1):

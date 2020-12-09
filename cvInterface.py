@@ -107,7 +107,7 @@ def overlayMask(img,mask,x0,y0,scale=1):
         img[y0:y0+mask.shape[0],x0:x0+mask.shape[1]] = upper+lower
     else:
         return img, False
-        print(f'failed: {x0+mask.shape[1]}>{img.shape[1]} or {y0+mask.shape[0]} > {img.shape[0]}')
+        #print(f'failed: {x0+mask.shape[1]}>{img.shape[1]} or {y0+mask.shape[0]} > {img.shape[0]}')
     return img, True
 
 # cartoonify() inspired by the tutorial
